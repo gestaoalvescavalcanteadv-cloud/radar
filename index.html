@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LitigaRadar · Placar de decisões bancárias do TJCE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f7f5f0; --card:#ffffff; --ink:#1a1a1a; --muted:#6b6b6b; --line:#e7e2d6;
+    --gold:#c9a961; --gold-soft:#f7f3e9; --fav:#2e7d5b; --contra:#b4473c; --neutro:#9a9a9a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:#1a1a1a;color:#fff;padding:22px 28px;border-bottom:3px solid var(--gold)}
+  header h1{margin:0;font-size:24px;letter-spacing:.3px}
+  header h1 span{color:var(--gold)}
+  header p{margin:6px 0 0;color:#cfcfcf;font-size:14px}
+  main{max-width:1180px;margin:0 auto;padding:24px 20px 60px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:22px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .kpi .v{font-size:28px;font-weight:700}
+  .kpi .l{font-size:12.5px;color:var(--muted);margin-top:4px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:22px}
+  .card h2{margin:0 0 4px;font-size:17px}
+  .card .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .tabs button{border:1px solid var(--line);background:#fff;padding:8px 14px;border-radius:999px;cursor:pointer;font:inherit;font-size:14px}
+  .tabs button.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+  .filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  select,input{font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  input{min-width:240px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{background:var(--gold-soft);text-align:left;padding:9px 10px;font-weight:600;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr.click:hover td{background:#fbf9f4;cursor:pointer}
+  .bar{height:10px;border-radius:5px;background:#eee;overflow:hidden;min-width:110px;display:flex}
+  .bar i{display:block;height:100%}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+  .pill.f{background:#e3f1ea;color:var(--fav)} .pill.c{background:#f6e3e0;color:var(--contra)} .pill.n{background:#eee;color:#555}
+  .aviso{font-size:12px;color:var(--muted)}
+  .peq{color:#a07c2a;font-size:12px;font-weight:600}
+  .lista .item{border-bottom:1px solid var(--line);padding:12px 0}
+  .lista .item:last-child{border-bottom:0}
+  .lista .meta{font-size:12.5px;color:var(--muted);margin-bottom:4px}
+  .lista a{color:#7a5c12}
+  .pag{display:flex;gap:8px;align-items:center;margin-top:12px}
+  .pag button{border:1px solid var(--line);background:#fff;padding:6px 12px;border-radius:8px;cursor:pointer}
+  .chart-wrap{position:relative;height:340px}
+  footer{max-width:1180px;margin:0 auto;padding:0 20px 40px;color:var(--muted);font-size:12.5px}
+  .carregando{color:var(--muted);font-size:14px;padding:10px 0}
+</style>
+</head>
+<body>
+<header>
+  <h1>Litiga<span>Radar</span></h1>
+  <p>Placar das decisões bancárias e consumeristas do TJCE, a partir das publicações oficiais do DJEN (Comunica PJe).</p>
+</header>
+
+<main>
+  <section class="kpis" id="kpis"><div class="carregando">Carregando…</div></section>
+
+  <section class="card">
+    <h2>Resultado por tema</h2>
+    <div class="sub">Decisões favoráveis e contrárias ao consumidor em cada tema (acordos e extinções sem mérito ficam fora).</div>
+    <div class="chart-wrap"><canvas id="graficoTemas"></canvas></div>
+  </section>
+
+  <section class="card">
+    <div class="tabs">
+      <button data-aba="magistrados" class="on">Por magistrado</button>
+      <button data-aba="orgaos">Por vara / câmara</button>
+      <button data-aba="decisoes">Decisões</button>
+    </div>
+    <div class="filtros">
+      <select id="fTema"><option value="">Todos os temas</option></select>
+      <input id="fBusca" placeholder="Buscar nome do magistrado ou do órgão…">
+      <select id="fFav" style="display:none">
+        <option value="">Favoráveis e contrárias</option>
+        <option value="true">Só favoráveis ao consumidor</option>
+        <option value="false">Só contrárias ao consumidor</option>
+      </select>
+    </div>
+    <div id="conteudo"><div class="carregando">Carregando…</div></div>
+  </section>
+
+  <section class="card" id="detalhe" style="display:none">
+    <h2 id="detTitulo"></h2>
+    <div class="sub" id="detSub"></div>
+    <div class="chart-wrap" style="height:260px"><canvas id="graficoDet"></canvas></div>
+    <h2 style="margin-top:18px;font-size:15px">Decisões</h2>
+    <div class="lista" id="detLista"></div>
+    <div class="pag" id="detPag"></div>
+  </section>
+</main>
+
+<footer>
+  Fonte: publicações oficiais do Diário de Justiça Eletrônico Nacional (DJEN). A classificação de cada decisão é feita por IA e pode conter erros;
+  confira sempre a íntegra pelo link oficial antes de citar. Magistrados com menos de 10 decisões num recorte aparecem marcados como “amostra pequena”.
+</footer>
+
+<script>
+const API = "https://wvvhlhyfzzoexaywyamm.supabase.co/functions/v1/radar-api";
+const fmt = new Intl.NumberFormat("pt-BR");
+const brl = v => v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const NOME_RUIM = /(poder judici|tribunal de justi|gabinete|comarca de|data de ingresso|direito privado|secretaria)/i;
+const nomeOk = n => n && n.trim().length >= 8 && !NOME_RUIM.test(n);
+async function api(params) {
+  const r = await fetch(API + "?" + new URLSearchParams(params));
+  if (!r.ok) throw new Error("Erro " + r.status);
+  const j = await r.json();
+  if (params.q === "magistrados") return j.filter(m => nomeOk(m.nome));
+  if (j.itens) j.itens.forEach(x => { if (x.magistrados && !nomeOk(x.magistrados.nome)) x.magistrados = null; });
+  return j;
+}
+
+let aba = "magistrados", dados = [], ordem = { campo: "total", desc: true }, chartDet = null, pagDec = 0;
+
+function pill(f) {
+  if (f === true) return '<span class="pill f">Favorável</span>';
+  if (f === false) return '<span class="pill c">Contrária</span>';
+  return '<span class="pill n">Neutra</span>';
+}
+
+async function carregarResumo() {
+  const r = await api({ q: "resumo" });
+  document.getElementById("kpis").innerHTML = [
+    [fmt.format(r.decisoes), "decisões classificadas"],
+    [r.pct_favoravel == null ? "—" : r.pct_favoravel.toLocaleString("pt-BR") + "%", "favoráveis ao consumidor"],
+    [brl(r.dano_moral_medio), "dano moral médio fixado"],
+    [fmt.format(r.magistrados), "magistrados no radar"],
+    [fmt.format(r.orgaos), "varas e câmaras"],
+    [r.ultima_publicacao ? r.ultima_publicacao.split("-").reverse().join("/") : "—", "publicação mais recente"],
+  ].map(([v, l]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("") +
+  (r.pendentes_ficha ? `<div class="kpi"><div class="v">${fmt.format(r.pendentes_ficha)}</div><div class="l">aguardando leitura pela IA</div></div>` : "");
+
+  const sel = document.getElementById("fTema");
+  r.temas.forEach(t => sel.insertAdjacentHTML("beforeend", `<option>${esc(t.tema)}</option>`));
+
+  new Chart(document.getElementById("graficoTemas"), {
+    type: "bar",
+    data: {
+      labels: r.temas.map(t => t.tema),
+      datasets: [
+        { label: "Favoráveis ao consumidor", data: r.temas.map(t => t.favoraveis), backgroundColor: "#2e7d5b" },
+        { label: "Contrárias ao consumidor", data: r.temas.map(t => t.contrarias), backgroundColor: "#b4473c" },
+      ],
+    },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: "y",
+      scales: { x: { stacked: true, grid: { color: "#eee" } }, y: { stacked: true, grid: { display: false } } },
+      plugins: { legend: { position: "bottom" } } },
+  });
+}
+
+async function carregarPlacar() {
+  const cont = document.getElementById("conteudo");
+  cont.innerHTML = '<div class="carregando">Carregando…</div>';
+  const tema = document.getElementById("fTema").value;
+  dados = await api(tema ? { q: aba, tema } : { q: aba });
+  desenharTabela();
+}
+
+function desenharTabela() {
+  const busca = document.getElementById("fBusca").value.trim().toLowerCase();
+  let linhas = dados.filter(d => !busca || (d.nome || "").toLowerCase().includes(busca));
+  linhas.sort((a, b) => {
+    const x = a[ordem.campo] ?? -1, y = b[ordem.campo] ?? -1;
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * (ordem.desc ? -1 : 1);
+  });
+  const titulo = aba === "magistrados" ? "Magistrado" : "Vara / câmara";
+  const cab = [["nome", titulo], ["total", "Decisões"], ["pct_favoravel", "% favorável"], ["dano_moral", "Com dano moral"], ["dano_moral_medio", "Dano moral médio"]];
+  document.getElementById("conteudo").innerHTML = `
+    <table><thead><tr>${cab.map(([c, t]) => `<th data-c="${c}">${t}${ordem.campo === c ? (ordem.desc ? " ▾" : " ▴") : ""}</th>`).join("")}</tr></thead>
+    <tbody>${linhas.slice(0, 300).map(d => {
+      const fav = d.favoraveis, contra = d.total - d.favoraveis;
+      const pf = d.total ? (100 * fav / d.total) : 0;
+      return `<tr class="click" data-id="${d.id}">
+        <td><b>${esc(d.nome)}</b>${d.amostra_pequena ? ' <span class="peq">amostra pequena</span>' : ""}</td>
+        <td>${fmt.format(d.total)}</td>
+        <td><div style="display:flex;gap:8px;align-items:center"><div class="bar"><i style="width:${pf}%;background:var(--fav)"></i><i style="width:${100 - pf}%;background:var(--contra)"></i></div>${d.pct_favoravel == null ? "—" : d.pct_favoravel.toLocaleString("pt-BR") + "%"}</div></td>
+        <td>${fmt.format(d.dano_moral)}</td>
+        <td>${brl(d.dano_moral_medio)}</td></tr>`;
+    }).join("")}</tbody></table>
+    <div class="aviso" style="margin-top:8px">${fmt.format(linhas.length)} ${aba === "magistrados" ? "magistrados" : "órgãos"}. Clique numa linha para ver o detalhe e as decisões.</div>`;
+  document.querySelectorAll("#conteudo th").forEach(th => th.onclick = () => {
+    const c = th.dataset.c; ordem = { campo: c, desc: ordem.campo === c ? !ordem.desc : c !== "nome" }; desenharTabela();
+  });
+  document.querySelectorAll("#conteudo tr.click").forEach(tr => tr.onclick = () => abrirDetalhe(Number(tr.dataset.id)));
+}
+
+async function abrirDetalhe(id) {
+  const d = dados.find(x => x.id === id);
+  const det = document.getElementById("detalhe");
+  det.style.display = "block";
+  document.getElementById("detTitulo").textContent = d.nome;
+  document.getElementById("detSub").innerHTML = `${fmt.format(d.total)} decisões · ${d.pct_favoravel == null ? "—" : d.pct_favoravel.toLocaleString("pt-BR") + "% favoráveis ao consumidor"} · dano moral em ${fmt.format(d.dano_moral)} (média ${brl(d.dano_moral_medio)})${d.amostra_pequena ? ' · <span class="peq">amostra pequena</span>' : ""}`;
+  const temas = Object.entries(d.temas).sort((a, b) => b[1] - a[1]);
+  if (chartDet) chartDet.destroy();
+  chartDet = new Chart(document.getElementById("graficoDet"), {
+    type: "bar",
+    data: { labels: temas.map(t => t[0]), datasets: [{ label: "Decisões por tema", data: temas.map(t => t[1]), backgroundColor: "#c9a961" }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+  });
+  pagDec = 0;
+  await listarDecisoes(aba === "magistrados" ? { magistrado_id: id } : { orgao_id: id }, "detLista", "detPag");
+  det.scrollIntoView({ behavior: "smooth" });
+}
+
+async function listarDecisoes(filtro, alvo, alvoPag) {
+  const el = document.getElementById(alvo);
+  el.innerHTML = '<div class="carregando">Carregando…</div>';
+  const tema = document.getElementById("fTema").value;
+  const fav = document.getElementById("fFav").value;
+  const p = { q: "decisoes", pagina: pagDec, ...filtro };
+  if (tema) p.tema = tema;
+  if (fav && alvo === "conteudo") p.favoravel = fav;
+  const r = await api(p);
+  el.innerHTML = `<div class="lista">${r.itens.map(x => `
+    <div class="item">
+      <div class="meta">${x.data_disponibilizacao ? x.data_disponibilizacao.split("-").reverse().join("/") : ""} · ${esc(x.orgaos?.nome || "")}${x.magistrados?.nome ? " · " + esc(x.magistrados.nome) : ""} · ${esc(x.numero_processo || "")}</div>
+      <div>${pill(x.favoravel_consumidor)} <b>${esc(x.tema || "")}</b> · ${esc(x.resultado || "")}${x.dano_moral_concedido ? " · dano moral " + brl(x.dano_moral_valor) : ""}${x.repeticao_dobro ? " · repetição em dobro" : ""}</div>
+      <div style="margin-top:4px">${esc(x.tese || "")}</div>
+      ${x.link ? `<div style="margin-top:4px"><a href="${esc(x.link)}" target="_blank" rel="noopener">Ver publicação oficial</a></div>` : ""}
+    </div>`).join("") || '<div class="carregando">Nenhuma decisão neste recorte.</div>'}</div>`;
+  const totPag = Math.max(1, Math.ceil(r.total / 50));
+  document.getElementById(alvoPag).innerHTML = totPag > 1 ? `
+    <button ${pagDec === 0 ? "disabled" : ""} id="${alvoPag}-ant">Anterior</button>
+    <span class="aviso">Página ${pagDec + 1} de ${totPag} · ${fmt.format(r.total)} decisões</span>
+    <button ${pagDec + 1 >= totPag ? "disabled" : ""} id="${alvoPag}-prox">Próxima</button>` : `<span class="aviso">${fmt.format(r.total)} decisões</span>`;
+  const ant = document.getElementById(alvoPag + "-ant"), prox = document.getElementById(alvoPag + "-prox");
+  if (ant) ant.onclick = () => { pagDec--; listarDecisoes(filtro, alvo, alvoPag); };
+  if (prox) prox.onclick = () => { pagDec++; listarDecisoes(filtro, alvo, alvoPag); };
+}
+
+function trocarAba(nova) {
+  aba = nova;
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.aba === aba));
+  document.getElementById("fBusca").style.display = aba === "decisoes" ? "none" : "";
+  document.getElementById("fFav").style.display = aba === "decisoes" ? "" : "none";
+  document.getElementById("detalhe").style.display = "none";
+  ordem = { campo: "total", desc: true };
+  if (aba === "decisoes") {
+    pagDec = 0;
+    document.getElementById("conteudo").innerHTML = '<div id="decLista"></div><div class="pag" id="decPag"></div>';
+    listarDecisoesAba();
+  } else carregarPlacar();
+}
+function listarDecisoesAba() {
+  const el = document.getElementById("decLista");
+  if (!el) return;
+  // reaproveita a lista, mas o filtro de favoravel vale aqui
+  const fav = document.getElementById("fFav").value;
+  const tema = document.getElementById("fTema").value;
+  const p = { q: "decisoes", pagina: pagDec };
+  if (tema) p.tema = tema;
+  if (fav) p.favoravel = fav;
+  el.innerHTML = '<div class="carregando">Carregando…</div>';
+  api(p).then(r => {
+    el.innerHTML = r.itens.map(x => `
+      <div class="item" style="border-bottom:1px solid var(--line);padding:12px 0">
+        <div class="aviso">${x.data_disponibilizacao ? x.data_disponibilizacao.split("-").reverse().join("/") : ""} · ${esc(x.orgaos?.nome || "")}${x.magistrados?.nome ? " · " + esc(x.magistrados.nome) : ""} · ${esc(x.numero_processo || "")}</div>
+        <div>${pill(x.favoravel_consumidor)} <b>${esc(x.tema || "")}</b> · ${esc(x.resultado || "")}${x.dano_moral_concedido ? " · dano moral " + brl(x.dano_moral_valor) : ""}${x.repeticao_dobro ? " · repetição em dobro" : ""}</div>
+        <div style="margin-top:4px">${esc(x.tese || "")}</div>
+        ${x.link ? `<div style="margin-top:4px"><a href="${esc(x.link)}" target="_blank" rel="noopener" style="color:#7a5c12">Ver publicação oficial</a></div>` : ""}
+      </div>`).join("") || '<div class="carregando">Nenhuma decisão neste recorte.</div>';
+    const totPag = Math.max(1, Math.ceil(r.total / 50));
+    document.getElementById("decPag").innerHTML = `
+      <button ${pagDec === 0 ? "disabled" : ""} id="dAnt">Anterior</button>
+      <span class="aviso">Página ${pagDec + 1} de ${totPag} · ${fmt.format(r.total)} decisões</span>
+      <button ${pagDec + 1 >= totPag ? "disabled" : ""} id="dProx">Próxima</button>`;
+    document.getElementById("dAnt").onclick = () => { pagDec--; listarDecisoesAba(); };
+    document.getElementById("dProx").onclick = () => { pagDec++; listarDecisoesAba(); };
+  });
+}
+
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => trocarAba(b.dataset.aba));
+document.getElementById("fTema").onchange = () => { document.getElementById("detalhe").style.display = "none"; aba === "decisoes" ? (pagDec = 0, listarDecisoesAba()) : carregarPlacar(); };
+document.getElementById("fFav").onchange = () => { pagDec = 0; listarDecisoesAba(); };
+document.getElementById("fBusca").oninput = () => desenharTabela();
+
+carregarResumo().catch(e => document.getElementById("kpis").innerHTML = `<div class="carregando">Não foi possível carregar: ${esc(e.message)}</div>`);
+carregarPlacar().catch(e => document.getElementById("conteudo").innerHTML = `<div class="carregando">Não foi possível carregar: ${esc(e.message)}</div>`);
+</script>
+</body>
+</html>
