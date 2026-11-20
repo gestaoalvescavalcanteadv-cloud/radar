@@ -171,18 +171,19 @@ function desenharTabela() {
     return (typeof x === "string" ? x.localeCompare(y) : x - y) * (ordem.desc ? -1 : 1);
   });
   const titulo = aba === "magistrados" ? "Magistrado" : "Vara / câmara";
-  const cab = [["nome", titulo], ["total", "Decisões"], ["pct_favoravel", "% favorável"], ["dano_moral", "Com dano moral"], ["dano_moral_medio", "Dano moral médio"]];
+  const cab = [["nome", titulo], ["total", "Decisões"], ["pct_favoravel", "% favorável (mérito)"], ["dano_moral", "Com dano moral"], ["dano_moral_medio", "Dano moral médio"]];
   document.getElementById("conteudo").innerHTML = `
     <table><thead><tr>${cab.map(([c, t]) => `<th data-c="${c}">${t}${ordem.campo === c ? (ordem.desc ? " ▾" : " ▴") : ""}</th>`).join("")}</tr></thead>
     <tbody>${linhas.slice(0, 300).map(d => {
-      const fav = d.favoraveis, contra = d.total - d.favoraveis;
-      const pf = d.total ? (100 * fav / d.total) : 0;
+      const fav = d.favoraveis, contra = d.contrarias ?? (d.total - d.favoraveis);
+      const merito = fav + contra, pf = merito ? (100 * fav / merito) : 0;
+      const pct = merito ? (Math.round(pf * 10) / 10).toLocaleString("pt-BR") + "%" : "—";
       return `<tr class="click" data-id="${d.id}">
         <td><b>${esc(d.nome)}</b>${d.amostra_pequena ? ' <span class="peq">amostra pequena</span>' : ""}</td>
-        <td>${fmt.format(d.total)}</td>
-        <td><div style="display:flex;gap:8px;align-items:center"><div class="bar"><i style="width:${pf}%;background:var(--fav)"></i><i style="width:${100 - pf}%;background:var(--contra)"></i></div>${d.pct_favoravel == null ? "—" : d.pct_favoravel.toLocaleString("pt-BR") + "%"}</div></td>
+        <td>${fmt.format(d.total)}${d.total > merito ? `<div class="aviso">${fmt.format(merito)} de mérito</div>` : ""}</td>
+        <td><div style="display:flex;gap:8px;align-items:center"><div class="bar"><i style="width:${pf}%;background:var(--fav)"></i><i style="width:${merito ? 100 - pf : 0}%;background:var(--contra)"></i></div>${pct}</div></td>
         <td>${fmt.format(d.dano_moral)}</td>
-        <td>${brl(d.dano_moral_medio)}</td></tr>`;
+        <td>${d.dano_moral_medio ? brl(d.dano_moral_medio) : "—"}</td></tr>`;
     }).join("")}</tbody></table>
     <div class="aviso" style="margin-top:8px">${fmt.format(linhas.length)} ${aba === "magistrados" ? "magistrados" : "órgãos"}. Clique numa linha para ver o detalhe e as decisões.</div>`;
   document.querySelectorAll("#conteudo th").forEach(th => th.onclick = () => {
