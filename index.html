@@ -67,12 +67,12 @@
   .mapa-box{position:relative;background:linear-gradient(160deg,#fcfbf7,#f3efe4);border:1px solid var(--line);border-radius:12px;overflow:hidden}
   #svgMapa{display:block;width:100%;height:auto;touch-action:none;cursor:grab}
   #svgMapa.arrastando{cursor:grabbing}
-  #svgMapa path.mun{stroke:#fff;stroke-width:.35;transition:fill .25s ease,opacity .2s ease}
+  #svgMapa path.mun{stroke:#fff;stroke-width:.9;transition:fill .25s ease,opacity .2s ease}
   #svgMapa path.mun.clicavel{cursor:pointer}
-  #svgMapa path.mun:hover{stroke:#1a1a1a;stroke-width:.9}
+  #svgMapa path.mun:hover{stroke:#1a1a1a;stroke-width:2.6}
   #svgMapa path.mun.apagado{opacity:.18}
-  #svgMapa path.sel{stroke:var(--gold);stroke-width:1.4;filter:drop-shadow(0 0 4px rgba(201,169,97,.9))}
-  #svgMapa text.rotulo{font:600 2.1px Inter,sans-serif;fill:#1a1a1a;paint-order:stroke;stroke:#fff;stroke-width:.7px;pointer-events:none}
+  #svgMapa path.sel{stroke:var(--gold);stroke-width:4;filter:drop-shadow(0 0 4px rgba(201,169,97,.9))}
+  #svgMapa text.rotulo{font:600 9px Inter,sans-serif;fill:#1a1a1a;paint-order:stroke;stroke:#fff;stroke-width:2.6px;pointer-events:none}
   .tip{position:absolute;pointer-events:none;background:#1a1a1a;color:#fff;border-radius:8px;padding:9px 11px;font-size:12.5px;line-height:1.45;opacity:0;transition:opacity .12s;max-width:230px;z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.25)}
   .tip b{color:var(--gold)}
   .tip .tbar{height:7px;border-radius:4px;background:#444;display:flex;overflow:hidden;margin-top:6px}
@@ -94,6 +94,9 @@
   .quadro{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px}
   .quadro div{background:var(--gold-soft);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
   .quadro b{display:block;font-size:19px}
+  .rolagem{max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+  .rolagem thead th{position:sticky;top:0;z-index:2}
+  .rolagem table{font-size:13.5px}
   .quadro span{font-size:11.5px;color:var(--muted)}
 </style>
 </head>
@@ -108,15 +111,17 @@
 
   <section class="card" id="cardMapa">
     <h2>Mapa do Ceará · onde vale a pena entrar com a ação</h2>
-    <div class="sub">Verde é comarca que decide a favor do consumidor; vermelho é comarca que decide contra. Passe o mouse para ver os números, clique para abrir a comarca, use a roda do mouse para dar zoom.</div>
+    <div class="sub" id="mSub">Verde é comarca que decide a favor do consumidor; vermelho é comarca que decide contra. Passe o mouse para ver os números, clique para abrir a comarca, use a roda do mouse para dar zoom.</div>
     <div class="mapa-ctrl">
-      <div class="seg" id="mMetrica">
-        <button data-m="pct" class="on">% favorável</button>
-        <button data-m="vol">Volume de decisões</button>
-        <button data-m="dano">Dano moral médio</button>
+      <div class="seg" id="mVisao">
+        <button data-v="dec" class="on">Decisões do TJCE</button>
+        <button data-v="opo">Oportunidade de mercado</button>
       </div>
+    </div>
+    <div class="mapa-ctrl">
+      <div class="seg" id="mMetrica"></div>
       <select id="mTema"><option value="">Todos os temas</option></select>
-      <input id="mBusca" placeholder="Buscar comarca…" style="min-width:180px">
+      <input id="mBusca" placeholder="Buscar município…" style="min-width:170px">
       <label class="chk"><input type="checkbox" id="mNomes"> Mostrar nomes</label>
       <button class="mini" id="mReset">Reiniciar zoom</button>
     </div>
@@ -129,7 +134,33 @@
       <aside class="ranks" id="mRanks"></aside>
     </div>
     <div id="mapaDetalhe"></div>
-    <div class="aviso" style="margin-top:12px">Cada município pintado é a <b>sede da comarca</b>; municípios sem vara própria ficam em cinza. Comarcas com menos de 10 decisões de mérito aparecem hachuradas (amostra pequena).</div>
+    <div class="aviso" style="margin-top:12px" id="mRodape"></div>
+  </section>
+
+  <section class="card" id="cardMercado">
+    <h2>Os 184 municípios · potencial de mercado jurídico</h2>
+    <div class="sub">Índice de Potencial Jurídico Municipal (IPJM) a partir de dados oficiais do IBGE, do Ministério da Previdência e das decisões do próprio radar. Clique no cabeçalho para ordenar.</div>
+    <div class="mapa-ctrl">
+      <input id="tBusca" placeholder="Buscar município…" style="min-width:200px">
+      <select id="tRaio">
+        <option value="">Todo o estado</option>
+        <option value="60">Até 60 km de Lavras</option>
+        <option value="120">Até 120 km de Lavras</option>
+        <option value="200">Até 200 km de Lavras</option>
+      </select>
+      <button class="mini" id="tCsv">Baixar planilha (CSV)</button>
+      <button class="mini" id="tMetodo">Metodologia e lacunas</button>
+    </div>
+    <div id="tMetodoTxt" style="display:none"></div>
+    <div id="tTabela" class="rolagem"><div class="carregando">Carregando…</div></div>
+  </section>
+
+  <section class="card" id="cardProjecao">
+    <h2>Projeção de receita por município</h2>
+    <div class="sub">Os números abaixo são <b>premissas suas</b>, não dados: mexa nos controles e a projeção se refaz para os municípios do recorte escolhido acima.</div>
+    <div id="projCtrl" class="quadro"></div>
+    <div id="projSaida"></div>
+    <div class="aviso" style="margin-top:10px">Cenário construído sobre a base de contratos potenciais estimada pela quantidade de benefícios, nunca sobre demanda confirmada. Serve para comparar municípios entre si, não para prever faturamento. Captação e publicidade seguem o Código de Ética e o Provimento 205/2021 da OAB.</div>
   </section>
 
   <section class="card">
@@ -354,29 +385,71 @@ function listarDecisoesAba() {
 /* =========================  MAPA DO CEARÁ  ========================= */
 
 const MAPA = {
-  malha: null, svg: null, caminhos: new Map(), comarcas: new Map(), orgaos: [],
-  metrica: "pct", sel: null, faixaOff: new Set(), vb: null, vb0: null, nomes: false,
+  malha: null, caminhos: new Map(), porChave: new Map(), chaveDe: new Map(),
+  comarcas: new Map(), mun: new Map(), meta: null, orgaos: [],
+  visao: "dec", metrica: "pct", sel: null, faixaOff: new Set(), vb: null, vb0: null, nomes: false,
 };
 
 const SEM_ACENTO = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/-/g, " ").trim();
 const APELIDOS = { "itapaje": "itapage" };     // o IBGE ainda grafa Itapagé
 const chaveMun = s => { const k = SEM_ACENTO(s); return APELIDOS[k] || k; };
 
+const mil = v => v == null ? "—" : fmt.format(Math.round(v));
 const ESCALAS = {
-  pct: {
-    rotulo: "% favorável ao consumidor",
+  ipjm: {
+    visao: "opo", botao: "Potencial (IPJM)", rotulo: "índice de potencial jurídico (0 a 100)",
     faixas: [
-      { lim: 75, cor: "var(--v5)", txt: "75% ou mais · ótimo" },
-      { lim: 60, cor: "var(--v4)", txt: "60 a 75% · bom" },
-      { lim: 50, cor: "var(--v3)", txt: "50 a 60% · equilibrado" },
-      { lim: 35, cor: "var(--v2)", txt: "35 a 50% · difícil" },
-      { lim: -1, cor: "var(--v1)", txt: "abaixo de 35% · ruim" },
+      { lim: 55, cor: "#00a651", txt: "55+ · prioridade" }, { lim: 45, cor: "#7ac143", txt: "45 a 55 · forte" },
+      { lim: 35, cor: "#f2c200", txt: "35 a 45 · médio" }, { lim: 25, cor: "#f58220", txt: "25 a 35 · fraco" },
+      { lim: -1, cor: "#e03131", txt: "abaixo de 25" }],
+    valor: m => m.ipjm, texto: v => v == null ? "—" : v.toLocaleString("pt-BR"),
+  },
+  ben: {
+    visao: "opo", botao: "Benefícios do INSS", rotulo: "benefícios mantidos (dez/2025)",
+    faixas: [
+      { lim: 20000, cor: "#6b5316", txt: "20 mil+" }, { lim: 10000, cor: "#9c7c33", txt: "10 a 20 mil" },
+      { lim: 5000, cor: "#c9a961", txt: "5 a 10 mil" }, { lim: 2500, cor: "#e4cf96", txt: "2,5 a 5 mil" },
+      { lim: -1, cor: "#f3e8c9", txt: "até 2,5 mil" }],
+    valor: m => m.tb, texto: v => v == null ? "—" : fmt.format(v) + " benefícios",
+  },
+  idoso: {
+    visao: "opo", botao: "População 60+", rotulo: "população com 60 anos ou mais (Censo 2022)",
+    faixas: [
+      { lim: 15000, cor: "#143a66", txt: "15 mil+" }, { lim: 7500, cor: "#2b5f9e", txt: "7,5 a 15 mil" },
+      { lim: 4000, cor: "#5b8dc8", txt: "4 a 7,5 mil" }, { lim: 2000, cor: "#a9c2e3", txt: "2 a 4 mil" },
+      { lim: -1, cor: "#e8eef7", txt: "até 2 mil" }],
+    valor: m => m.p60, texto: v => v == null ? "—" : fmt.format(v) + " pessoas",
+  },
+  valor: {
+    visao: "opo", botao: "R$ pagos por mês", rotulo: "valor mensal pago pelo INSS",
+    faixas: [
+      { lim: 40000, cor: "#00695c", txt: "R$ 40 mi+" }, { lim: 20000, cor: "#2a9d8f", txt: "R$ 20 a 40 mi" },
+      { lim: 10000, cor: "#6ec6bb", txt: "R$ 10 a 20 mi" }, { lim: 5000, cor: "#b2e0da", txt: "R$ 5 a 10 mi" },
+      { lim: -1, cor: "#e3f4f1", txt: "até R$ 5 mi" }],
+    valor: m => m.vl, texto: v => v == null ? "—" : "R$ " + (v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mi/mês",
+  },
+  rural: {
+    visao: "opo", botao: "Clientela rural", rotulo: "% dos benefícios previdenciários da clientela rural",
+    faixas: [
+      { lim: 80, cor: "#4a7c23", txt: "80% ou mais" }, { lim: 65, cor: "#7ac143", txt: "65 a 80%" },
+      { lim: 50, cor: "#c6d94a", txt: "50 a 65%" }, { lim: 30, cor: "#e4cf96", txt: "30 a 50%" },
+      { lim: -1, cor: "#efe7d2", txt: "abaixo de 30%" }],
+    valor: m => m.rurpct, texto: v => v == null ? "—" : v.toLocaleString("pt-BR") + "% rurais",
+  },
+  pct: {
+    visao: "dec", botao: "% favorável", rotulo: "% favorável ao consumidor",
+    faixas: [
+      { lim: 75, cor: "#00a651", txt: "75% ou mais · ótimo" },
+      { lim: 60, cor: "#7ac143", txt: "60 a 75% · bom" },
+      { lim: 50, cor: "#f2c200", txt: "50 a 60% · equilibrado" },
+      { lim: 35, cor: "#f58220", txt: "35 a 50% · difícil" },
+      { lim: -1, cor: "#e03131", txt: "abaixo de 35% · ruim" },
     ],
     valor: c => c.merito ? 100 * c.fav / c.merito : null,
     texto: v => v == null ? "—" : (Math.round(v * 10) / 10).toLocaleString("pt-BR") + "%",
   },
   vol: {
-    rotulo: "volume de decisões",
+    visao: "dec", botao: "Volume de decisões", rotulo: "volume de decisões",
     faixas: [
       { lim: 500, cor: "#6b5316", txt: "500+" },
       { lim: 250, cor: "#9c7c33", txt: "250 a 500" },
@@ -388,7 +461,7 @@ const ESCALAS = {
     texto: v => v == null ? "—" : fmt.format(v) + " decisões",
   },
   dano: {
-    rotulo: "dano moral médio",
+    visao: "dec", botao: "Dano moral médio", rotulo: "dano moral médio",
     faixas: [
       { lim: 4000, cor: "#143a66", txt: "R$ 4 mil ou mais" },
       { lim: 3000, cor: "#2b5f9e", txt: "R$ 3 a 4 mil" },
@@ -410,10 +483,36 @@ function faixaDe(metrica, v) {
 
 async function carregarMalha() {
   if (MAPA.malha) return MAPA.malha;
-  const r = await fetch("ce-municipios.json");
-  if (!r.ok) throw new Error("malha " + r.status);
-  MAPA.malha = await r.json();
+  const [a, b] = await Promise.all([fetch("ce-municipios.json"), fetch("municipios-ce-oportunidade.json")]);
+  if (!a.ok) throw new Error("malha " + a.status);
+  MAPA.malha = await a.json();
+  if (b.ok) {
+    const j = await b.json();
+    MAPA.meta = j;
+    j.mun.forEach(m => MAPA.mun.set(m.c, m));
+  }
   return MAPA.malha;
+}
+
+function registroDe(cod) {
+  return MAPA.visao === "opo" ? MAPA.mun.get(cod) : MAPA.comarcas.get(MAPA.chaveDe.get(cod));
+}
+function nomeRegistro(cod) {
+  const r = registroDe(cod);
+  if (!r) return null;
+  return MAPA.visao === "opo" ? r.n : r.nome;
+}
+function metricasDaVisao() {
+  return Object.entries(ESCALAS).filter(([, e]) => e.visao === MAPA.visao).map(([k]) => k);
+}
+function desenharBotoesMetrica() {
+  const ms = metricasDaVisao();
+  if (!ms.includes(MAPA.metrica)) MAPA.metrica = ms[0];
+  document.getElementById("mMetrica").innerHTML =
+    ms.map(k => `<button data-m="${k}" class="${k === MAPA.metrica ? "on" : ""}">${ESCALAS[k].botao}</button>`).join("");
+  document.querySelectorAll("#mMetrica button").forEach(b => b.onclick = () => {
+    MAPA.metrica = b.dataset.m; MAPA.faixaOff.clear(); desenharBotoesMetrica(); pintarMapa();
+  });
 }
 
 function agregarComarcas(orgaos) {
@@ -449,13 +548,15 @@ function desenharMapa() {
     }
   }));
   const pad = (maxX - minX) * .02;
-  const W = maxX - minX + pad * 2, H = maxY - minY + pad * 2;
-  MAPA.vb0 = { x: minX - pad, y: minY - pad, w: W, h: H };
+  const Wg = maxX - minX + pad * 2, Hg = maxY - minY + pad * 2;
+  const S = 1000 / Wg, x0 = minX - pad, y0 = minY - pad;
+  const proj = (lon, lat) => { const p = px(lon, lat); return [(p[0] - x0) * S, (p[1] - y0) * S]; };
+  MAPA.vb0 = { x: 0, y: 0, w: 1000, h: Hg * S };
   MAPA.vb = { ...MAPA.vb0 };
-  svg.setAttribute("viewBox", `${MAPA.vb.x} ${MAPA.vb.y} ${W} ${H}`);
+  svg.setAttribute("viewBox", `0 0 1000 ${(Hg * S).toFixed(1)}`);
 
-  const defs = `<defs><pattern id="hach" width="1.6" height="1.6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
-    <line x1="0" y1="0" x2="0" y2="1.6" stroke="#ffffff" stroke-width=".7" opacity=".85"/></pattern></defs>`;
+  const defs = `<defs><pattern id="hach" width="7" height="7" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0" x2="0" y2="7" stroke="#ffffff" stroke-width="3" opacity=".85"/></pattern></defs>`;
 
   let corpo = "", rotulos = "";
   MAPA.caminhos.clear();
@@ -463,20 +564,21 @@ function desenharMapa() {
     const d = m.r.map(r => {
       let s = "";
       for (let i = 0; i < r.length; i += 2) {
-        const [x, y] = px(r[i], r[i + 1]);
-        s += (i ? "L" : "M") + x.toFixed(3) + " " + y.toFixed(3);
+        const [x, y] = proj(r[i], r[i + 1]);
+        s += (i ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1);
       }
       return s + "Z";
     }).join("");
     const kk = chaveMun(m.n);
-    corpo += `<path class="mun" d="${d}" data-k="${kk}" data-n="${esc(m.n)}"></path>`;
+    MAPA.chaveDe.set(m.c, kk); MAPA.porChave.set(kk, m.c);
+    corpo += `<path class="mun" d="${d}" data-c="${m.c}" data-k="${kk}" data-n="${esc(m.n)}"></path>`;
     // centro aproximado para o rótulo
     let sx = 0, sy = 0, q = 0;
-    m.r[0] && (() => { const r = m.r[0]; for (let i = 0; i < r.length; i += 2) { const [x, y] = px(r[i], r[i + 1]); sx += x; sy += y; q++; } })();
-    if (q) rotulos += `<text class="rotulo" data-k="${kk}" x="${(sx / q).toFixed(2)}" y="${(sy / q).toFixed(2)}" text-anchor="middle" style="display:none">${esc(m.n)}</text>`;
+    m.r[0] && (() => { const r = m.r[0]; for (let i = 0; i < r.length; i += 2) { const [x, y] = proj(r[i], r[i + 1]); sx += x; sy += y; q++; } })();
+    if (q) rotulos += `<text class="rotulo" data-c="${m.c}" x="${(sx / q).toFixed(1)}" y="${(sy / q).toFixed(1)}" text-anchor="middle" style="display:none">${esc(m.n)}</text>`;
   });
   svg.innerHTML = defs + `<g id="gMun">${corpo}</g><g id="gHach"></g><g id="gRot">${rotulos}</g>`;
-  svg.querySelectorAll("path.mun").forEach(p => MAPA.caminhos.set(p.dataset.k, p));
+  svg.querySelectorAll("path.mun").forEach(p => MAPA.caminhos.set(p.dataset.c, p));
 
   ligarInteracoes(svg);
   pintarMapa();
@@ -486,24 +588,31 @@ function pintarMapa() {
   const esc0 = ESCALAS[MAPA.metrica];
   const busca = SEM_ACENTO(document.getElementById("mBusca").value || "");
   let hach = "";
-  MAPA.caminhos.forEach((p, k) => {
-    const c = MAPA.comarcas.get(k);
-    const v = c ? esc0.valor(c) : null;
-    const fx = c ? faixaDe(MAPA.metrica, v) : -1;
-    p.setAttribute("fill", fx < 0 ? "var(--semdado)" : esc0.faixas[fx].cor);
-    p.classList.toggle("clicavel", !!c);
+  MAPA.caminhos.forEach((p, cod) => {
+    const reg = registroDe(cod);
+    const v = reg ? esc0.valor(reg) : null;
+    const fx = reg ? faixaDe(MAPA.metrica, v) : -1;
+    p.setAttribute("fill", fx < 0 ? "#e6e1d5" : esc0.faixas[fx].cor);
+    p.classList.toggle("clicavel", !!reg);
     const foraFaixa = fx >= 0 && MAPA.faixaOff.has(fx);
-    const foraBusca = busca && !(c && SEM_ACENTO(c.nome).includes(busca));
-    p.classList.toggle("apagado", !c || foraFaixa || foraBusca);
-    p.classList.toggle("sel", MAPA.sel === k);
-    if (c && c.peq && !foraFaixa && !foraBusca) hach += `<path d="${p.getAttribute("d")}" fill="url(#hach)" stroke="none" pointer-events="none"></path>`;
+    const nome = reg ? nomeRegistro(cod) : p.dataset.n;
+    const foraBusca = !!busca && !SEM_ACENTO(nome || "").includes(busca);
+    p.classList.toggle("apagado", foraFaixa || foraBusca || (MAPA.faixaOff.size > 0 && fx < 0));
+    p.classList.toggle("sel", MAPA.sel === cod);
+    if (MAPA.visao === "dec" && reg && reg.peq && !foraFaixa && !foraBusca)
+      hach += `<path d="${p.getAttribute("d")}" fill="url(#hach)" stroke="none" pointer-events="none"></path>`;
   });
   document.getElementById("gHach").innerHTML = hach;
   document.querySelectorAll("#gRot text").forEach(t => {
-    const c = MAPA.comarcas.get(t.dataset.k);
-    const mostrar = MAPA.nomes ? !!c : (MAPA.sel === t.dataset.k);
-    t.style.display = mostrar ? "" : "none";
+    const temDado = !!registroDe(t.dataset.c);
+    t.style.display = (MAPA.nomes ? temDado : MAPA.sel === t.dataset.c) ? "" : "none";
   });
+  document.getElementById("mSub").innerHTML = MAPA.visao === "dec"
+    ? "Verde é comarca que decide a favor do consumidor; vermelho é comarca que decide contra. Passe o mouse para ver os números, clique para abrir a comarca, use a roda do mouse para dar zoom."
+    : "Onde estão os clientes: benefícios do INSS, população idosa, clientela rural e dinheiro pago por mês em cada um dos 184 municípios. O índice combina esses dados com a litigiosidade e a distância de Lavras.";
+  document.getElementById("mRodape").innerHTML = MAPA.visao === "dec"
+    ? "Cada município pintado é a <b>sede da comarca</b>; municípios sem vara própria ficam em cinza. Comarcas com menos de 10 decisões de mérito aparecem hachuradas (amostra pequena)."
+    : "Fontes: IBGE (Censo 2022) e Ministério da Previdência Social (benefícios emitidos por município, dezembro/2025). Quantidade de benefícios não é o mesmo que beneficiários únicos, nem que demanda jurídica.";
   desenharLegenda();
   desenharRanking();
 }
@@ -513,7 +622,7 @@ function desenharLegenda() {
   document.getElementById("mLegenda").innerHTML =
     `<span class="aviso" style="align-self:center;margin-right:4px">${e.rotulo}:</span>` +
     e.faixas.map((f, i) => `<button data-f="${i}" class="${MAPA.faixaOff.has(i) ? "off" : ""}"><i style="background:${f.cor}"></i>${f.txt}</button>`).join("") +
-    `<button data-f="-1" style="cursor:default"><i style="background:var(--semdado)"></i>sem decisões</button>`;
+    `<button data-f="-1" style="cursor:default"><i style="background:var(--semdado)"></i>${MAPA.visao === "dec" ? "sem decisões" : "sem dado"}</button>`;
   document.querySelectorAll("#mLegenda button[data-f]").forEach(b => b.onclick = () => {
     const i = Number(b.dataset.f);
     if (i < 0) return;
@@ -524,24 +633,27 @@ function desenharLegenda() {
 
 function desenharRanking() {
   const e = ESCALAS[MAPA.metrica];
-  const lista = [...MAPA.comarcas.entries()]
-    .map(([k, c]) => ({ k, c, v: e.valor(c) }))
-    .filter(x => x.v != null && (MAPA.metrica !== "pct" || c_merito(x.c)));
+  const lista = [];
+  MAPA.caminhos.forEach((p, cod) => {
+    const reg = registroDe(cod); if (!reg) return;
+    const v = e.valor(reg);
+    if (v == null || (MAPA.metrica === "pct" && !c_merito(reg))) return;
+    lista.push({ cod, nome: nomeRegistro(cod), v });
+  });
   lista.sort((a, b) => b.v - a.v);
-  const linha = x => {
-    const fx = faixaDe(MAPA.metrica, x.v);
-    return `<li data-k="${x.k}"><span class="pt" style="background:${ESCALAS[MAPA.metrica].faixas[fx].cor}"></span>
-      <span class="nm">${esc(x.c.nome)}${x.c.peq ? ' <span class="peq">·</span>' : ""}</span>
-      <span class="vl">${e.texto(x.v)}</span></li>`;
-  };
-  const titulo = MAPA.metrica === "pct" ? ["Melhores comarcas", "Piores comarcas"]
-    : MAPA.metrica === "vol" ? ["Mais movimentadas", "Menos movimentadas"]
-    : ["Maiores indenizações", "Menores indenizações"];
+  const linha = x => `<li data-c="${x.cod}"><span class="pt" style="background:${e.faixas[faixaDe(MAPA.metrica, x.v)].cor}"></span>
+      <span class="nm">${esc(x.nome)}</span><span class="vl">${e.texto(x.v)}</span></li>`;
+  const titulos = {
+    pct: ["Melhores comarcas", "Piores comarcas"], vol: ["Mais movimentadas", "Menos movimentadas"],
+    dano: ["Maiores indenizações", "Menores indenizações"], ipjm: ["Maior potencial", "Menor potencial"],
+    ben: ["Mais benefícios", "Menos benefícios"], idoso: ["Mais idosos", "Menos idosos"],
+    valor: ["Mais dinheiro do INSS", "Menos dinheiro do INSS"], rural: ["Mais rurais", "Mais urbanos"],
+  }[MAPA.metrica];
   document.getElementById("mRanks").innerHTML = `
-    <div class="rank-bloco"><h3>${titulo[0]}</h3><ol>${lista.slice(0, 8).map(linha).join("")}</ol></div>
-    <div class="rank-bloco"><h3>${titulo[1]}</h3><ol>${lista.slice(-8).reverse().map(linha).join("")}</ol></div>
-    <div class="aviso">${fmt.format(lista.length)} comarcas no recorte. Clique para abrir no mapa.</div>`;
-  document.querySelectorAll("#mRanks li").forEach(li => li.onclick = () => selecionarComarca(li.dataset.k, true));
+    <div class="rank-bloco"><h3>${titulos[0]}</h3><ol>${lista.slice(0, 8).map(linha).join("")}</ol></div>
+    <div class="rank-bloco"><h3>${titulos[1]}</h3><ol>${lista.slice(-8).reverse().map(linha).join("")}</ol></div>
+    <div class="aviso">${fmt.format(lista.length)} ${MAPA.visao === "dec" ? "comarcas" : "municípios"} no recorte. Clique para abrir no mapa.</div>`;
+  document.querySelectorAll("#mRanks li").forEach(li => li.onclick = () => selecionarComarca(li.dataset.c, true));
 }
 const c_merito = c => c.merito >= 10;
 
@@ -553,24 +665,33 @@ function ligarInteracoes(svg) {
   svg.addEventListener("mousemove", ev => {
     const p = ev.target.closest("path.mun");
     if (!p) { tip.style.opacity = 0; return; }
-    const c = MAPA.comarcas.get(p.dataset.k);
+    const reg = registroDe(p.dataset.c);
     const r = box.getBoundingClientRect();
     tip.style.opacity = 1;
     tip.style.left = Math.min(ev.clientX - r.left + 14, r.width - 240) + "px";
     tip.style.top = (ev.clientY - r.top + 14) + "px";
-    if (!c) { tip.innerHTML = `<b>${esc(p.dataset.n)}</b><br>sem decisões no radar`; return; }
-    const pf = c.merito ? 100 * c.fav / c.merito : 0;
+    if (!reg) { tip.innerHTML = `<b>${esc(p.dataset.n)}</b><br>${MAPA.visao === "dec" ? "sem decisões no radar" : "sem dado"}`; return; }
+    if (MAPA.visao === "opo") {
+      tip.innerHTML = `<b>${esc(reg.n)}</b><br>
+        IPJM ${reg.ipjm.toLocaleString("pt-BR")} · ${reg.pos}º no estado<br>
+        ${fmt.format(reg.tb)} benefícios · ${fmt.format(reg.p60)} pessoas com 60+<br>
+        R$ ${(reg.vl / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi pagos por mês<br>
+        ${reg.rurpct.toLocaleString("pt-BR")}% da clientela é rural · ${reg.km.toLocaleString("pt-BR")} km de Lavras
+        ${reg.dec ? "<br>comarca com " + fmt.format(reg.dec) + " decisões no radar" : ""}`;
+      return;
+    }
+    const c = reg, pf = c.merito ? 100 * c.fav / c.merito : 0;
     tip.innerHTML = `<b>Comarca de ${esc(c.nome)}</b><br>
       ${fmt.format(c.total)} decisões · ${fmt.format(c.merito)} de mérito<br>
       ${ESCALAS.pct.texto(c.merito ? pf : null)} favoráveis ao consumidor
-      <div class="tbar"><i style="width:${pf}%;background:var(--v5)"></i><i style="width:${c.merito ? 100 - pf : 0}%;background:var(--v1)"></i></div>
+      <div class="tbar"><i style="width:${pf}%;background:#00a651"></i><i style="width:${c.merito ? 100 - pf : 0}%;background:#e03131"></i></div>
       dano moral médio: ${c.danoMedio ? brl(c.danoMedio) : "—"}<br>
       ${c.orgaos.length} ${c.orgaos.length === 1 ? "vara" : "varas"}${c.peq ? " · amostra pequena" : ""}`;
   });
   svg.addEventListener("mouseleave", () => tip.style.opacity = 0);
   svg.addEventListener("click", ev => {
     const p = ev.target.closest("path.mun");
-    if (p && MAPA.comarcas.has(p.dataset.k)) selecionarComarca(p.dataset.k, false);
+    if (p && registroDe(p.dataset.c)) selecionarComarca(p.dataset.c, false);
   });
 
   // zoom pela roda do mouse
@@ -607,13 +728,15 @@ function aproximarEm(k) {
   aplicarVb(svg);
 }
 
-function selecionarComarca(k, zoom) {
-  MAPA.sel = MAPA.sel === k && !zoom ? null : k;
+function selecionarComarca(cod, zoom) {
+  MAPA.sel = MAPA.sel === cod && !zoom ? null : cod;
   pintarMapa();
   if (MAPA.sel && zoom) aproximarEm(MAPA.sel);
   const alvo = document.getElementById("mapaDetalhe");
   if (!MAPA.sel) { alvo.innerHTML = ""; return; }
-  const c = MAPA.comarcas.get(MAPA.sel);
+  if (MAPA.visao === "opo") { detalheMunicipio(MAPA.mun.get(MAPA.sel), alvo); return; }
+  const c = MAPA.comarcas.get(MAPA.chaveDe.get(MAPA.sel));
+  if (!c) { alvo.innerHTML = ""; return; }
   const pf = c.merito ? 100 * c.fav / c.merito : null;
   const orgs = [...c.orgaos].sort((a, b) => b.total - a.total);
   alvo.innerHTML = `<div class="det-comarca">
@@ -633,7 +756,7 @@ function selecionarComarca(k, zoom) {
       return `<tr class="click" data-id="${o.id}">
         <td><b>${esc(o.nome)}</b></td>
         <td>${fmt.format(o.total)}</td>
-        <td><div style="display:flex;gap:8px;align-items:center"><div class="bar"><i style="width:${p}%;background:var(--v5)"></i><i style="width:${mer ? 100 - p : 0}%;background:var(--v1)"></i></div>${mer ? ESCALAS.pct.texto(p) : "—"}</div></td>
+        <td><div style="display:flex;gap:8px;align-items:center"><div class="bar"><i style="width:${p}%;background:#00a651"></i><i style="width:${mer ? 100 - p : 0}%;background:#e03131"></i></div>${mer ? ESCALAS.pct.texto(p) : "—"}</div></td>
         <td>${o.dano_moral_medio ? brl(o.dano_moral_medio) : "—"}</td></tr>`;
     }).join("")}</tbody></table>
     <div class="aviso" style="margin-top:8px">Clique numa vara para ver as decisões dela.</div></div>`;
@@ -643,20 +766,59 @@ function selecionarComarca(k, zoom) {
   });
 }
 
-async function carregarMapa() {
-  const tema = document.getElementById("mTema").value;
-  const [, orgaos] = await Promise.all([carregarMalha(), api(tema ? { q: "orgaos", tema } : { q: "orgaos" })]);
-  MAPA.orgaos = orgaos;
-  MAPA.comarcas = agregarComarcas(orgaos);
-  MAPA.sel = null;
-  document.getElementById("mapaDetalhe").innerHTML = "";
-  if (!MAPA.caminhos.size) desenharMapa(); else pintarMapa();
+function detalheMunicipio(m, alvo) {
+  if (!m) { alvo.innerHTML = ""; return; }
+  const NOMES = { volume_inss: "Volume de benefícios", idosa: "População idosa", rural: "Clientela rural",
+    judicial: "Demandas judiciais", vulnerabilidade: "Vulnerabilidade (BPC)", logistica: "Proximidade de Lavras" };
+  alvo.innerHTML = `<div class="det-comarca">
+    <div class="cab"><h3>${esc(m.n)}</h3>
+      <span class="aviso">${m.pos}º no IPJM${m.cob < 100 ? " · índice com " + m.cob + "% dos indicadores" : ""}</span>
+      <button class="mini" id="mFechaDet" style="margin-left:auto">Fechar</button></div>
+    <div class="quadro">
+      <div><b>${m.ipjm.toLocaleString("pt-BR")}</b><span>IPJM (0 a 100)</span></div>
+      <div><b>${fmt.format(m.pop)}</b><span>habitantes (Censo 2022)</span></div>
+      <div><b>${fmt.format(m.p60)}</b><span>com 60 anos ou mais (${(100*m.p60/m.pop).toFixed(1).replace(".", ",")}%)</span></div>
+      <div><b>${fmt.format(m.tb)}</b><span>benefícios do INSS</span></div>
+      <div><b>R$ ${(m.vl/1000).toLocaleString("pt-BR",{maximumFractionDigits:1})} mi</b><span>pagos por mês</span></div>
+      <div><b>${m.rurpct.toLocaleString("pt-BR")}%</b><span>da clientela é rural</span></div>
+      <div><b>${m.km.toLocaleString("pt-BR")} km</b><span>de Lavras (linha reta)</span></div>
+      <div><b>${m.dec ? fmt.format(m.dec) : "—"}</b><span>${m.dec ? "decisões no radar (comarca)" : "sem vara própria"}</span></div>
+    </div>
+    <table><thead><tr><th>Composição do índice</th><th>Nota (0 a 100)</th></tr></thead><tbody>
+      ${Object.entries(m.comp).map(([k, v]) => `<tr><td>${NOMES[k] || k}</td>
+        <td><div style="display:flex;gap:8px;align-items:center"><div class="bar"><i style="width:${v}%;background:var(--gold)"></i></div>${v.toLocaleString("pt-BR")}</div></td></tr>`).join("")}
+    </tbody></table>
+    <table style="margin-top:12px"><thead><tr><th>Aposentadorias</th><th>Pensões por morte</th><th>Auxílios</th><th>BPC/LOAS</th></tr></thead>
+      <tbody><tr><td>${fmt.format(m.ap)}</td><td>${fmt.format(m.pe)}</td><td>${fmt.format(m.ax)}</td><td>${fmt.format(m.bpc)}</td></tr></tbody></table>
+    ${m.dec ? `<div class="aviso" style="margin-top:8px">Comarca de ${esc(m.co)}: ${fmt.format(m.dec)} decisões, ${(100*m.fav/Math.max(1,m.fav+m.contra)).toFixed(1).replace(".", ",")}% favoráveis ao consumidor, dano moral médio ${brl(m.dano)}.</div>` : ""}
+  </div>`;
+  document.getElementById("mFechaDet").onclick = () => { MAPA.sel = null; pintarMapa(); alvo.innerHTML = ""; };
 }
 
-document.querySelectorAll("#mMetrica button").forEach(b => b.onclick = () => {
-  MAPA.metrica = b.dataset.m; MAPA.faixaOff.clear();
-  document.querySelectorAll("#mMetrica button").forEach(x => x.classList.toggle("on", x === b));
-  pintarMapa();
+async function carregarMapa() {
+  const tema = document.getElementById("mTema").value;
+  const [, orgaos] = await Promise.all([
+    carregarMalha(),
+    api(tema ? { q: "orgaos", tema } : { q: "orgaos" }).catch(e => { console.warn("radar-api", e); return null; }),
+  ]);
+  if (orgaos) { MAPA.orgaos = orgaos; MAPA.comarcas = agregarComarcas(orgaos); }
+  else if (MAPA.visao === "dec") {
+    MAPA.comarcas = new Map();
+    document.getElementById("mSub").innerHTML = 'Não foi possível carregar as decisões agora. A visão <b>Oportunidade de mercado</b> continua disponível.';
+  }
+  MAPA.sel = null;
+  document.getElementById("mapaDetalhe").innerHTML = "";
+  desenharBotoesMetrica();
+  if (!MAPA.caminhos.size) desenharMapa(); else pintarMapa();
+  montarMercado();
+}
+
+document.querySelectorAll("#mVisao button").forEach(b => b.onclick = () => {
+  MAPA.visao = b.dataset.v; MAPA.faixaOff.clear(); MAPA.sel = null;
+  document.querySelectorAll("#mVisao button").forEach(x => x.classList.toggle("on", x === b));
+  document.getElementById("mTema").style.display = MAPA.visao === "dec" ? "" : "none";
+  document.getElementById("mapaDetalhe").innerHTML = "";
+  desenharBotoesMetrica(); pintarMapa();
 });
 document.getElementById("mTema").onchange = () => carregarMapa();
 document.getElementById("mBusca").oninput = () => pintarMapa();
@@ -666,6 +828,127 @@ document.getElementById("mReset").onclick = () => {
   MAPA.faixaOff.clear(); MAPA.sel = null;
   document.getElementById("mBusca").value = ""; document.getElementById("mapaDetalhe").innerHTML = "";
   pintarMapa();
+};
+
+/* ===== os 184 municípios: planilha e projeção ===== */
+
+const MERC = { ordem: { campo: "ipjm", desc: true } };
+const PREM = [
+  { id: "demanda", rot: "% dos benefícios com problema jurídico", v: 3, min: 0.5, max: 15, passo: .5, suf: "%" },
+  { id: "conversao", rot: "% que vira contrato assinado", v: 10, min: 1, max: 50, passo: 1, suf: "%" },
+  { id: "exito", rot: "% de êxito nas ações", v: 70, min: 10, max: 95, passo: 5, suf: "%" },
+  { id: "honorario", rot: "honorário médio por caso ganho", v: 3000, min: 500, max: 15000, passo: 250, suf: " R$" },
+  { id: "prazo", rot: "prazo médio de recebimento (meses)", v: 24, min: 6, max: 60, passo: 3, suf: " m" },
+];
+
+function municipiosFiltrados() {
+  if (!MAPA.meta) return [];
+  const b = SEM_ACENTO(document.getElementById("tBusca").value || "");
+  const raio = +document.getElementById("tRaio").value || 0;
+  return MAPA.meta.mun.filter(m => (!b || SEM_ACENTO(m.n).includes(b)) && (!raio || m.km <= raio));
+}
+
+function montarMercado() {
+  if (!MAPA.meta) { document.getElementById("tTabela").innerHTML = '<div class="carregando">Base municipal indisponível.</div>'; return; }
+  if (!document.getElementById("projCtrl").children.length) {
+    document.getElementById("projCtrl").innerHTML = PREM.map(p => `<div>
+      <b id="lbl_${p.id}">${p.id === "honorario" ? brl(p.v) : p.v.toLocaleString("pt-BR") + p.suf}</b>
+      <span>${p.rot}</span>
+      <input type="range" id="rng_${p.id}" min="${p.min}" max="${p.max}" step="${p.passo}" value="${p.v}" style="width:100%;min-width:0;padding:0;margin-top:6px">
+    </div>`).join("");
+    PREM.forEach(p => document.getElementById("rng_" + p.id).oninput = e => {
+      p.v = +e.target.value;
+      document.getElementById("lbl_" + p.id).textContent = p.id === "honorario" ? brl(p.v) : p.v.toLocaleString("pt-BR") + p.suf;
+      calcularProjecao();
+    });
+  }
+  desenharTabelaMun();
+  calcularProjecao();
+}
+
+function desenharTabelaMun() {
+  const cols = [["pos", "#"], ["n", "Município"], ["ipjm", "IPJM"], ["pop", "População"], ["p60", "60+"],
+    ["tb", "Benefícios"], ["rurpct", "% rural"], ["vl", "R$/mês"], ["bpc", "BPC"], ["dec", "Decisões"], ["km", "km"]];
+  const lista = municipiosFiltrados().slice().sort((a, b) => {
+    const x = a[MERC.ordem.campo] ?? -1, y = b[MERC.ordem.campo] ?? -1;
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * (MERC.ordem.desc ? -1 : 1);
+  });
+  document.getElementById("tTabela").innerHTML = `
+    <table><thead><tr>${cols.map(([c, t]) => `<th data-c="${c}">${t}${MERC.ordem.campo === c ? (MERC.ordem.desc ? " ▾" : " ▴") : ""}</th>`).join("")}</tr></thead>
+    <tbody>${lista.map(m => `<tr class="click" data-c="${m.c}">
+      <td>${m.pos}</td><td><b>${esc(m.n)}</b></td>
+      <td><div style="display:flex;gap:8px;align-items:center"><div class="bar" style="min-width:70px"><i style="width:${m.ipjm}%;background:var(--gold)"></i></div>${m.ipjm.toLocaleString("pt-BR")}</div></td>
+      <td>${fmt.format(m.pop)}</td><td>${fmt.format(m.p60)}</td><td>${fmt.format(m.tb)}</td>
+      <td>${m.rurpct.toLocaleString("pt-BR")}%</td><td>${(m.vl / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mi</td>
+      <td>${fmt.format(m.bpc)}</td><td>${m.dec ? fmt.format(m.dec) : "—"}</td><td>${m.km.toLocaleString("pt-BR")}</td></tr>`).join("")}</tbody></table>
+    <div class="aviso" style="margin-top:8px">${fmt.format(lista.length)} municípios no recorte. Clique numa linha para abrir no mapa.</div>`;
+  document.querySelectorAll("#tTabela th").forEach(th => th.onclick = () => {
+    const c = th.dataset.c;
+    MERC.ordem = { campo: c, desc: MERC.ordem.campo === c ? !MERC.ordem.desc : c !== "n" };
+    desenharTabelaMun();
+  });
+  document.querySelectorAll("#tTabela tr.click").forEach(tr => tr.onclick = () => {
+    const b = document.querySelector('#mVisao button[data-v="opo"]');
+    if (MAPA.visao !== "opo") b.click();
+    selecionarComarca(tr.dataset.c, true);
+    document.getElementById("cardMapa").scrollIntoView({ behavior: "smooth" });
+  });
+}
+
+function calcularProjecao() {
+  const p = Object.fromEntries(PREM.map(x => [x.id, x.v]));
+  const lista = municipiosFiltrados().map(m => {
+    const casos = m.tb * p.demanda / 100, contratos = casos * p.conversao / 100;
+    return { m, casos, contratos, receita: contratos * p.exito / 100 * p.honorario };
+  }).sort((a, b) => b.receita - a.receita);
+  const tot = lista.reduce((a, x) => a + x.receita, 0);
+  const contratos = lista.reduce((a, x) => a + x.contratos, 0);
+  document.getElementById("projSaida").innerHTML = `
+    <div class="quadro" style="margin-top:14px">
+      <div><b>${fmt.format(Math.round(lista.reduce((a, x) => a + x.casos, 0)))}</b><span>casos potenciais no recorte</span></div>
+      <div><b>${fmt.format(Math.round(contratos))}</b><span>contratos assinados</span></div>
+      <div><b>${brl(tot)}</b><span>receita esperada no ciclo</span></div>
+      <div><b>${brl(tot / p.prazo)}</b><span>equivalente por mês (${p.prazo} meses)</span></div>
+    </div>
+    <table style="margin-top:6px"><thead><tr><th>Município</th><th>Contratos</th><th>Receita esperada</th><th>km</th></tr></thead>
+    <tbody>${lista.slice(0, 10).map(x => `<tr><td><b>${esc(x.m.n)}</b></td><td>${fmt.format(Math.round(x.contratos))}</td>
+      <td>${brl(x.receita)}</td><td>${x.m.km.toLocaleString("pt-BR")}</td></tr>`).join("")}</tbody></table>`;
+}
+
+document.getElementById("tBusca").oninput = () => { desenharTabelaMun(); calcularProjecao(); };
+document.getElementById("tRaio").onchange = () => { desenharTabelaMun(); calcularProjecao(); };
+document.getElementById("tCsv").onclick = () => {
+  const cab = ["posicao", "codigo_ibge", "municipio", "ipjm", "cobertura_indice_pct", "populacao_2022", "pop_60_mais",
+    "beneficios_total", "aposentadorias", "pensoes_morte", "auxilios", "bpc_loas", "beneficios_rurais", "pct_rural",
+    "valor_mensal_rs_mil", "km_de_lavras", "comarca", "decisoes_radar", "favoraveis", "contrarias", "dano_moral_medio"];
+  const linhas = municipiosFiltrados().map(m => [m.pos, m.c, m.n, m.ipjm, m.cob, m.pop, m.p60, m.tb, m.ap, m.pe, m.ax,
+    m.bpc, m.ru, m.rurpct, m.vl, m.km, m.co || "", m.dec || "", m.fav || "", m.contra || "", m.dano || ""]);
+  const csv = "﻿" + [cab, ...linhas].map(l => l.map(v => `"${String(v).replace(/"/g, '""')}"`).join(";")).join("\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+  a.download = "municipios-ce-potencial-juridico.csv"; a.click();
+};
+document.getElementById("tMetodo").onclick = () => {
+  const el = document.getElementById("tMetodoTxt");
+  if (el.style.display === "block") { el.style.display = "none"; return; }
+  const j = MAPA.meta;
+  el.style.display = "block";
+  el.innerHTML = `<div class="det-comarca" style="border-top:0;padding-top:0">
+    <h3 style="font-size:15px;margin:0 0 8px">Como o índice é calculado</h3>
+    <p style="font-size:13.5px;margin:0 0 8px">Cada indicador é normalizado de 0 a 100 entre os 184 municípios (volume de benefícios, população idosa e decisões entram em escala logarítmica, para que Fortaleza não achate o restante do estado). A nota final é a média ponderada dos indicadores disponíveis em cada município, renormalizada pelo peso efetivamente usado — o campo "cobertura" mostra quanto do índice foi possível calcular.</p>
+    <table><thead><tr><th>Indicador</th><th>Peso previsto</th><th>Situação</th></tr></thead><tbody>
+      <tr><td>Volume de benefícios do INSS</td><td>25%</td><td>aplicado</td></tr>
+      <tr><td>População idosa e rural</td><td>20%</td><td>aplicado (10% idosos, 10% clientela rural)</td></tr>
+      <tr><td>Volume de demandas judiciais</td><td>20%</td><td>aplicado só nos municípios-sede de comarca</td></tr>
+      <tr><td>Vulnerabilidade social</td><td>15%</td><td>aplicado por BPC/LOAS por mil habitantes</td></tr>
+      <tr><td>Concorrência jurídica</td><td>10%</td><td><b>fora do índice</b> — sem base pública</td></tr>
+      <tr><td>Acessibilidade e logística</td><td>10%</td><td>aplicado por distância em linha reta de Lavras</td></tr>
+    </tbody></table>
+    <h3 style="font-size:15px;margin:14px 0 6px">Lacunas declaradas</h3>
+    <ul style="font-size:13.5px;margin:0 0 10px;padding-left:18px">${j.lacunas.map(x => `<li>${esc(x)}</li>`).join("")}</ul>
+    <h3 style="font-size:15px;margin:0 0 6px">Fontes</h3>
+    <ul style="font-size:13px;margin:0;padding-left:18px;color:var(--muted)">${Object.values(j.fontes).map(f => `<li>${esc(f)}</li>`).join("")}</ul>
+  </div>`;
 };
 
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => trocarAba(b.dataset.aba));
