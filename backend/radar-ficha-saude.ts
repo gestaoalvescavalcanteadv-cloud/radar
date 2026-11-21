@@ -48,28 +48,38 @@ Deno.serve(async (req) => {
 });
 
 async function fichar(body: any) {
-  const lote = Math.min(Number(body.lote || 40), 120), paralelo = Math.min(Number(body.paralelo || 8), 16);
+  const lote = Math.min(Number(body.lote || 40), 120), paralelo = Math.min(Number(body.paralelo || 3), 8);
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const chave = Deno.env.get("ANTHROPIC_API_KEY")!;
 
   const { data: fila } = await db.from("decisoes").select("id,texto,trecho,classe,tipo_documento,tribunal,magistrado_id")
     .eq("ficha_status", "fila_saude").order("data_disponibilizacao", { ascending: false }).limit(lote);
-  let ok = 0, erro = 0;
+  let ok = 0, erro = 0, pulou = 0;
 
   async function ler(d: any) {
     const texto = String(d.texto || d.trecho || "");
     const corte = texto.length > 14000 ? texto.slice(0, 5000) + "\n[...]\n" + texto.slice(-9000) : texto;
     try {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-        body: JSON.stringify({ model: MODELO, max_tokens: 600, system: SISTEMA,
-          messages: [{ role: "user", content: "Classe: " + (d.classe || "-") + "\nTipo: " + (d.tipo_documento || "-") + "\n\n" + corte }] }),
-      });
+      let r: Response | null = null;
+      for (let tent = 0; tent < 4; tent++) {
+        r = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+          body: JSON.stringify({ model: MODELO, max_tokens: 1500, system: SISTEMA,
+            messages: [{ role: "user", content: "Classe: " + (d.classe || "-") + "\nTipo: " + (d.tipo_documento || "-") + "\n\n" + corte }] }),
+        }).catch(() => null);
+        if (r && r.ok) break;
+        if (r && r.status < 500 && r.status !== 429) break;
+        await new Promise((ok) => setTimeout(ok, 3000 * (tent + 1) + Math.random() * 2000));
+      }
+      // IA ocupada ou fora do ar: devolve para a fila e tenta na proxima rodada
+      if (!r || r.status === 429 || r.status >= 500) { pulou++; return; }
       if (!r.ok) throw new Error("IA " + r.status);
       const j = await r.json();
       const txt = (j.content || []).map((c: any) => c.text || "").join("");
-      const f = JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1));
+      const ini = txt.indexOf("{"), fimJ = txt.lastIndexOf("}");
+      if (ini < 0 || fimJ <= ini) throw new Error("sem JSON: parada=" + j.stop_reason + " tipos=" + (j.content || []).map((c: any) => c.type).join(",") + " inicio=" + txt.slice(0, 120));
+      const f = JSON.parse(txt.slice(ini, fimJ + 1));
       const tema = TEMAS.includes(f.tema) ? f.tema : "Outros de saúde";
       const upd: any = {
         relevante: !!f.relevante, tema, subtema: f.subtema ? String(f.subtema).slice(0, 120) : null,
@@ -93,7 +103,8 @@ async function fichar(body: any) {
       await db.from("ia_consumo").insert({ decisao_id: d.id, modelo: MODELO, tokens_entrada: u.input_tokens || 0,
         tokens_saida: u.output_tokens || 0, custo_usd: (u.input_tokens || 0) * PRECO_ENTRADA + (u.output_tokens || 0) * PRECO_SAIDA });
       ok++;
-    } catch (_e) {
+    } catch (e) {
+      console.error("ficha saude", d.id, String(e));
       await db.from("decisoes").update({ ficha_status: "erro_saude", ficha_em: new Date().toISOString() }).eq("id", d.id);
       erro++;
     }
@@ -101,5 +112,5 @@ async function fichar(body: any) {
 
   const lista = fila || [];
   for (let i = 0; i < lista.length; i += paralelo) await Promise.all(lista.slice(i, i + paralelo).map(ler));
-  return { lidas: lista.length, ok, erro };
+  return { lidas: lista.length, ok, erro, pulou };
 }
