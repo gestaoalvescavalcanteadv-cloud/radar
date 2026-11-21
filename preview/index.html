@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LitigaRadar · Placar de decisões bancárias do TJCE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#f7f5f0; --card:#ffffff; --ink:#1a1a1a; --muted:#6b6b6b; --line:#e7e2d6;
+    --gold:#c9a961; --gold-soft:#f7f3e9; --fav:#2e7d5b; --contra:#b4473c; --neutro:#9a9a9a;
+    --v5:#00a651; --v4:#7ac143; --v3:#f2c200; --v2:#f58220; --v1:#e03131; --semdado:#e6e1d5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--ink)}
+  header{background:#1a1a1a;color:#fff;padding:22px 28px;border-bottom:3px solid var(--gold)}
+  header h1{margin:0;font-size:24px;letter-spacing:.3px}
+  header h1 span{color:var(--gold)}
+  header p{margin:6px 0 0;color:#cfcfcf;font-size:14px}
+  main{max-width:1180px;margin:0 auto;padding:24px 20px 60px}
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:14px;margin-bottom:22px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px}
+  .kpi .v{font-size:28px;font-weight:700}
+  .kpi .l{font-size:12.5px;color:var(--muted);margin-top:4px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:22px}
+  .card h2{margin:0 0 4px;font-size:17px}
+  .card .sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+  .tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .tabs button{border:1px solid var(--line);background:#fff;padding:8px 14px;border-radius:999px;cursor:pointer;font:inherit;font-size:14px}
+  .tabs button.on{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+  .filtros{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  select,input{font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+  input{min-width:240px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{background:var(--gold-soft);text-align:left;padding:9px 10px;font-weight:600;border-bottom:1px solid var(--line);cursor:pointer;white-space:nowrap}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  tr.click:hover td{background:#fbf9f4;cursor:pointer}
+  .bar{height:10px;border-radius:5px;background:#eee;overflow:hidden;min-width:110px;display:flex}
+  .bar i{display:block;height:100%}
+  .pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+  .pill.f{background:#e3f1ea;color:var(--fav)} .pill.c{background:#f6e3e0;color:var(--contra)} .pill.n{background:#eee;color:#555}
+  .aviso{font-size:12px;color:var(--muted)}
+  .peq{color:#a07c2a;font-size:12px;font-weight:600}
+  .lista .item{border-bottom:1px solid var(--line);padding:12px 0}
+  .lista .item:last-child{border-bottom:0}
+  .lista .meta{font-size:12.5px;color:var(--muted);margin-bottom:4px}
+  .lista a{color:#7a5c12}
+  .pag{display:flex;gap:8px;align-items:center;margin-top:12px}
+  .pag button{border:1px solid var(--line);background:#fff;padding:6px 12px;border-radius:8px;cursor:pointer}
+  .chart-wrap{position:relative;height:340px}
+  footer{max-width:1180px;margin:0 auto;padding:0 20px 40px;color:var(--muted);font-size:12.5px}
+  .carregando{color:var(--muted);font-size:14px;padding:10px 0}
+
+  /* ===== mapa ===== */
+  .mapa-ctrl{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:999px;overflow:hidden}
+  .seg button{border:0;background:#fff;padding:8px 14px;cursor:pointer;font:inherit;font-size:13.5px;color:var(--muted)}
+  .seg button+button{border-left:1px solid var(--line)}
+  .seg button.on{background:#1a1a1a;color:#fff}
+  .mini{border:1px solid var(--line);background:#fff;padding:8px 12px;border-radius:8px;cursor:pointer;font:inherit;font-size:13.5px}
+  .mini:hover{background:var(--gold-soft)}
+  .chk{display:flex;align-items:center;gap:6px;font-size:13.5px;color:var(--muted);cursor:pointer}
+  .mapa-grid{display:grid;grid-template-columns:1fr 290px;gap:18px}
+  @media(max-width:860px){.mapa-grid{grid-template-columns:1fr}}
+  .mapa-box{position:relative;background:linear-gradient(160deg,#fcfbf7,#f3efe4);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  #svgMapa{display:block;width:100%;height:auto;touch-action:none;cursor:grab}
+  #svgMapa.arrastando{cursor:grabbing}
+  #svgMapa path.mun{stroke:#fff;stroke-width:.35;transition:fill .25s ease,opacity .2s ease}
+  #svgMapa path.mun.clicavel{cursor:pointer}
+  #svgMapa path.mun:hover{stroke:#1a1a1a;stroke-width:.9}
+  #svgMapa path.mun.apagado{opacity:.18}
+  #svgMapa path.sel{stroke:var(--gold);stroke-width:1.4;filter:drop-shadow(0 0 4px rgba(201,169,97,.9))}
+  #svgMapa text.rotulo{font:600 2.1px Inter,sans-serif;fill:#1a1a1a;paint-order:stroke;stroke:#fff;stroke-width:.7px;pointer-events:none}
+  .tip{position:absolute;pointer-events:none;background:#1a1a1a;color:#fff;border-radius:8px;padding:9px 11px;font-size:12.5px;line-height:1.45;opacity:0;transition:opacity .12s;max-width:230px;z-index:5;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+  .tip b{color:var(--gold)}
+  .tip .tbar{height:7px;border-radius:4px;background:#444;display:flex;overflow:hidden;margin-top:6px}
+  .legenda{display:flex;flex-wrap:wrap;gap:6px;padding:10px 12px;border-top:1px solid var(--line);background:rgba(255,255,255,.75)}
+  .legenda button{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 10px;font:inherit;font-size:12px;cursor:pointer;color:#333}
+  .legenda button.off{opacity:.4}
+  .legenda i{width:12px;height:12px;border-radius:3px;display:block}
+  .ranks{display:flex;flex-direction:column;gap:14px}
+  .rank-bloco h3{margin:0 0 8px;font-size:13.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  .rank-bloco ol{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
+  .rank-bloco li{display:flex;align-items:center;gap:8px;font-size:13px;padding:5px 8px;border-radius:7px;cursor:pointer;border:1px solid transparent}
+  .rank-bloco li:hover{background:var(--gold-soft);border-color:var(--line)}
+  .rank-bloco li .pt{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+  .rank-bloco li .nm{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rank-bloco li .vl{font-weight:700;font-variant-numeric:tabular-nums}
+  .det-comarca{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+  .det-comarca .cab{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+  .det-comarca .cab h3{margin:0;font-size:16px}
+  .quadro{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:12px}
+  .quadro div{background:var(--gold-soft);border:1px solid var(--line);border-radius:9px;padding:9px 11px}
+  .quadro b{display:block;font-size:19px}
+  .quadro span{font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Litiga<span>Radar</span></h1>
+  <p>Placar das decisões bancárias e consumeristas do TJCE, a partir das publicações oficiais do DJEN (Comunica PJe).</p>
+</header>
+
+<main>
+  <section class="kpis" id="kpis"><div class="carregando">Carregando…</div></section>
+
+  <section class="card" id="cardMapa">
+    <h2>Mapa do Ceará · onde vale a pena entrar com a ação</h2>
+    <div class="sub">Verde é comarca que decide a favor do consumidor; vermelho é comarca que decide contra. Passe o mouse para ver os números, clique para abrir a comarca, use a roda do mouse para dar zoom.</div>
+    <div class="mapa-ctrl">
+      <div class="seg" id="mMetrica">
+        <button data-m="pct" class="on">% favorável</button>
+        <button data-m="vol">Volume de decisões</button>
+        <button data-m="dano">Dano moral médio</button>
+      </div>
+      <select id="mTema"><option value="">Todos os temas</option></select>
+      <input id="mBusca" placeholder="Buscar comarca…" style="min-width:180px">
+      <label class="chk"><input type="checkbox" id="mNomes"> Mostrar nomes</label>
+      <button class="mini" id="mReset">Reiniciar zoom</button>
+    </div>
+    <div class="mapa-grid">
+      <div class="mapa-box">
+        <svg id="svgMapa" viewBox="0 0 100 100" role="img" aria-label="Mapa das comarcas do Ceará"></svg>
+        <div class="tip" id="tipMapa"></div>
+        <div class="legenda" id="mLegenda"></div>
+      </div>
+      <aside class="ranks" id="mRanks"></aside>
+    </div>
+    <div id="mapaDetalhe"></div>
+    <div class="aviso" style="margin-top:12px">Cada município pintado é a <b>sede da comarca</b>; municípios sem vara própria ficam em cinza. Comarcas com menos de 10 decisões de mérito aparecem hachuradas (amostra pequena).</div>
+  </section>
+
+  <section class="card">
+    <h2>Resultado por tema</h2>
+    <div class="sub">Decisões favoráveis e contrárias ao consumidor em cada tema (acordos e extinções sem mérito ficam fora).</div>
+    <div class="chart-wrap"><canvas id="graficoTemas"></canvas></div>
+  </section>
+
+  <section class="card">
+    <div class="tabs">
+      <button data-aba="magistrados" class="on">Por magistrado</button>
+      <button data-aba="orgaos">Por vara / câmara</button>
+      <button data-aba="decisoes">Decisões</button>
+    </div>
+    <div class="filtros">
+      <select id="fTema"><option value="">Todos os temas</option></select>
+      <input id="fBusca" placeholder="Buscar nome do magistrado ou do órgão…">
+      <select id="fFav" style="display:none">
+        <option value="">Favoráveis e contrárias</option>
+        <option value="true">Só favoráveis ao consumidor</option>
+        <option value="false">Só contrárias ao consumidor</option>
+      </select>
+    </div>
+    <div id="conteudo"><div class="carregando">Carregando…</div></div>
+  </section>
+
+  <section class="card" id="detalhe" style="display:none">
+    <h2 id="detTitulo"></h2>
+    <div class="sub" id="detSub"></div>
+    <div class="chart-wrap" style="height:260px"><canvas id="graficoDet"></canvas></div>
+    <h2 style="margin-top:18px;font-size:15px">Decisões</h2>
+    <div class="lista" id="detLista"></div>
+    <div class="pag" id="detPag"></div>
+  </section>
+</main>
+
+<footer>
+  Fonte: publicações oficiais do Diário de Justiça Eletrônico Nacional (DJEN). A classificação de cada decisão é feita por IA e pode conter erros;
+  confira sempre a íntegra pelo link oficial antes de citar. Magistrados com menos de 10 decisões num recorte aparecem marcados como “amostra pequena”.
+  Malha municipal do Ceará: IBGE.
+</footer>
+
+<script>
+const API = "https://wvvhlhyfzzoexaywyamm.supabase.co/functions/v1/radar-api";
+const fmt = new Intl.NumberFormat("pt-BR");
+const brl = v => v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const NOME_RUIM = /(poder judici|tribunal de justi|gabinete|comarca de|data de ingresso|direito privado|secretaria)/i;
+const nomeOk = n => n && n.trim().length >= 8 && !NOME_RUIM.test(n);
+async function api(params) {
+  const r = await fetch(API + "?" + new URLSearchParams(params));
+  if (!r.ok) throw new Error("Erro " + r.status);
+  const j = await r.json();
+  if (params.q === "magistrados") return j.filter(m => nomeOk(m.nome));
+  if (j.itens) j.itens.forEach(x => { if (x.magistrados && !nomeOk(x.magistrados.nome)) x.magistrados = null; });
+  return j;
+}
+
+let aba = "magistrados", dados = [], ordem = { campo: "total", desc: true }, chartDet = null, pagDec = 0;
+
+function pill(f) {
+  if (f === true) return '<span class="pill f">Favorável</span>';
+  if (f === false) return '<span class="pill c">Contrária</span>';
+  return '<span class="pill n">Neutra</span>';
+}
+
+async function carregarResumo() {
+  const r = await api({ q: "resumo" });
+  document.getElementById("kpis").innerHTML = [
+    [fmt.format(r.decisoes), "decisões classificadas"],
+    [r.pct_favoravel == null ? "—" : r.pct_favoravel.toLocaleString("pt-BR") + "%", "favoráveis ao consumidor"],
+    [brl(r.dano_moral_medio), "dano moral médio fixado"],
+    [fmt.format(r.magistrados), "magistrados no radar"],
+    [fmt.format(r.orgaos), "varas e câmaras"],
+    [r.ultima_publicacao ? r.ultima_publicacao.split("-").reverse().join("/") : "—", "publicação mais recente"],
+  ].map(([v, l]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("") +
+  (r.pendentes_ficha ? `<div class="kpi"><div class="v">${fmt.format(r.pendentes_ficha)}</div><div class="l">aguardando leitura pela IA</div></div>` : "");
+
+  ["fTema", "mTema"].forEach(id => {
+    const sel = document.getElementById(id);
+    r.temas.forEach(t => sel.insertAdjacentHTML("beforeend", `<option>${esc(t.tema)}</option>`));
+  });
+
+  new Chart(document.getElementById("graficoTemas"), {
+    type: "bar",
+    data: {
+      labels: r.temas.map(t => t.tema),
+      datasets: [
+        { label: "Favoráveis ao consumidor", data: r.temas.map(t => t.favoraveis), backgroundColor: "#2e7d5b" },
+        { label: "Contrárias ao consumidor", data: r.temas.map(t => t.contrarias), backgroundColor: "#b4473c" },
+      ],
+    },
+    options: { responsive: true, maintainAspectRatio: false, indexAxis: "y",
+      scales: { x: { stacked: true, grid: { color: "#eee" } }, y: { stacked: true, grid: { display: false } } },
+      plugins: { legend: { position: "bottom" } } },
+  });
+}
+
+async function carregarPlacar() {
+  const cont = document.getElementById("conteudo");
+  cont.innerHTML = '<div class="carregando">Carregando…</div>';
+  const tema = document.getElementById("fTema").value;
+  dados = await api(tema ? { q: aba, tema } : { q: aba });
+  desenharTabela();
+}
+
+function desenharTabela() {
+  const busca = document.getElementById("fBusca").value.trim().toLowerCase();
+  let linhas = dados.filter(d => !busca || (d.nome || "").toLowerCase().includes(busca));
+  linhas.sort((a, b) => {
+    const x = a[ordem.campo] ?? -1, y = b[ordem.campo] ?? -1;
+    return (typeof x === "string" ? x.localeCompare(y) : x - y) * (ordem.desc ? -1 : 1);
+  });
+  const titulo = aba === "magistrados" ? "Magistrado" : "Vara / câmara";
+  const cab = [["nome", titulo], ["total", "Decisões"], ["pct_favoravel", "% favorável (mérito)"], ["dano_moral", "Com dano moral"], ["dano_moral_medio", "Dano moral médio"]];
+  document.getElementById("conteudo").innerHTML = `
+    <table><thead><tr>${cab.map(([c, t]) => `<th data-c="${c}">${t}${ordem.campo === c ? (ordem.desc ? " ▾" : " ▴") : ""}</th>`).join("")}</tr></thead>
+    <tbody>${linhas.slice(0, 300).map(d => {
+      const fav = d.favoraveis, contra = d.contrarias ?? (d.total - d.favoraveis);
+      const merito = fav + contra, pf = merito ? (100 * fav / merito) : 0;
+      const pct = merito ? (Math.round(pf * 10) / 10).toLocaleString("pt-BR") + "%" : "—";
+      return `<tr class="click" data-id="${d.id}">
+        <td><b>${esc(d.nome)}</b>${d.amostra_pequena ? ' <span class="peq">amostra pequena</span>' : ""}</td>
+        <td>${fmt.format(d.total)}${d.total > merito ? `<div class="aviso">${fmt.format(merito)} de mérito</div>` : ""}</td>
+        <td><div style="display:flex;gap:8px;align-items:center"><div class="bar"><i style="width:${pf}%;background:var(--fav)"></i><i style="width:${merito ? 100 - pf : 0}%;background:var(--contra)"></i></div>${pct}</div></td>
+        <td>${fmt.format(d.dano_moral)}</td>
+        <td>${d.dano_moral_medio ? brl(d.dano_moral_medio) : "—"}</td></tr>`;
+    }).join("")}</tbody></table>
+    <div class="aviso" style="margin-top:8px">${fmt.format(linhas.length)} ${aba === "magistrados" ? "magistrados" : "órgãos"}. Clique numa linha para ver o detalhe e as decisões.</div>`;
+  document.querySelectorAll("#conteudo th").forEach(th => th.onclick = () => {
+    const c = th.dataset.c; ordem = { campo: c, desc: ordem.campo === c ? !ordem.desc : c !== "nome" }; desenharTabela();
+  });
+  document.querySelectorAll("#conteudo tr.click").forEach(tr => tr.onclick = () => {
+    abrirDetalhe(dados.find(x => x.id === Number(tr.dataset.id)), aba);
+  });
+}
+
+async function abrirDetalhe(d, tipo) {
+  if (!d) return;
+  const det = document.getElementById("detalhe");
+  det.style.display = "block";
+  document.getElementById("detTitulo").textContent = d.nome;
+  document.getElementById("detSub").innerHTML = `${fmt.format(d.total)} decisões · ${d.pct_favoravel == null ? "—" : d.pct_favoravel.toLocaleString("pt-BR") + "% favoráveis ao consumidor"} · dano moral em ${fmt.format(d.dano_moral)} (média ${brl(d.dano_moral_medio)})${d.amostra_pequena ? ' · <span class="peq">amostra pequena</span>' : ""}`;
+  const temas = Object.entries(d.temas || {}).sort((a, b) => b[1] - a[1]);
+  if (chartDet) chartDet.destroy();
+  chartDet = new Chart(document.getElementById("graficoDet"), {
+    type: "bar",
+    data: { labels: temas.map(t => t[0]), datasets: [{ label: "Decisões por tema", data: temas.map(t => t[1]), backgroundColor: "#c9a961" }] },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } },
+  });
+  pagDec = 0;
+  await listarDecisoes(tipo === "magistrados" ? { magistrado_id: d.id } : { orgao_id: d.id }, "detLista", "detPag");
+  det.scrollIntoView({ behavior: "smooth" });
+}
+
+async function listarDecisoes(filtro, alvo, alvoPag) {
+  const el = document.getElementById(alvo);
+  el.innerHTML = '<div class="carregando">Carregando…</div>';
+  const tema = document.getElementById("fTema").value;
+  const fav = document.getElementById("fFav").value;
+  const p = { q: "decisoes", pagina: pagDec, ...filtro };
+  if (tema) p.tema = tema;
+  if (fav && alvo === "conteudo") p.favoravel = fav;
+  const r = await api(p);
+  el.innerHTML = `<div class="lista">${r.itens.map(x => `
+    <div class="item">
+      <div class="meta">${x.data_disponibilizacao ? x.data_disponibilizacao.split("-").reverse().join("/") : ""} · ${esc(x.orgaos?.nome || "")}${x.magistrados?.nome ? " · " + esc(x.magistrados.nome) : ""} · ${esc(x.numero_processo || "")}</div>
+      <div>${pill(x.favoravel_consumidor)} <b>${esc(x.tema || "")}</b> · ${esc(x.resultado || "")}${x.dano_moral_concedido ? " · dano moral " + brl(x.dano_moral_valor) : ""}${x.repeticao_dobro ? " · repetição em dobro" : ""}</div>
+      <div style="margin-top:4px">${esc(x.tese || "")}</div>
+      ${x.link ? `<div style="margin-top:4px"><a href="${esc(x.link)}" target="_blank" rel="noopener">Ver publicação oficial</a></div>` : ""}
+    </div>`).join("") || '<div class="carregando">Nenhuma decisão neste recorte.</div>'}</div>`;
+  const totPag = Math.max(1, Math.ceil(r.total / 50));
+  document.getElementById(alvoPag).innerHTML = totPag > 1 ? `
+    <button ${pagDec === 0 ? "disabled" : ""} id="${alvoPag}-ant">Anterior</button>
+    <span class="aviso">Página ${pagDec + 1} de ${totPag} · ${fmt.format(r.total)} decisões</span>
+    <button ${pagDec + 1 >= totPag ? "disabled" : ""} id="${alvoPag}-prox">Próxima</button>` : `<span class="aviso">${fmt.format(r.total)} decisões</span>`;
+  const ant = document.getElementById(alvoPag + "-ant"), prox = document.getElementById(alvoPag + "-prox");
+  if (ant) ant.onclick = () => { pagDec--; listarDecisoes(filtro, alvo, alvoPag); };
+  if (prox) prox.onclick = () => { pagDec++; listarDecisoes(filtro, alvo, alvoPag); };
+}
+
+function trocarAba(nova) {
+  aba = nova;
+  document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b.dataset.aba === aba));
+  document.getElementById("fBusca").style.display = aba === "decisoes" ? "none" : "";
+  document.getElementById("fFav").style.display = aba === "decisoes" ? "" : "none";
+  document.getElementById("detalhe").style.display = "none";
+  ordem = { campo: "total", desc: true };
+  if (aba === "decisoes") {
+    pagDec = 0;
+    document.getElementById("conteudo").innerHTML = '<div id="decLista"></div><div class="pag" id="decPag"></div>';
+    listarDecisoesAba();
+  } else carregarPlacar();
+}
+function listarDecisoesAba() {
+  const el = document.getElementById("decLista");
+  if (!el) return;
+  const fav = document.getElementById("fFav").value;
+  const tema = document.getElementById("fTema").value;
+  const p = { q: "decisoes", pagina: pagDec };
+  if (tema) p.tema = tema;
+  if (fav) p.favoravel = fav;
+  el.innerHTML = '<div class="carregando">Carregando…</div>';
+  api(p).then(r => {
+    el.innerHTML = r.itens.map(x => `
+      <div class="item" style="border-bottom:1px solid var(--line);padding:12px 0">
+        <div class="aviso">${x.data_disponibilizacao ? x.data_disponibilizacao.split("-").reverse().join("/") : ""} · ${esc(x.orgaos?.nome || "")}${x.magistrados?.nome ? " · " + esc(x.magistrados.nome) : ""} · ${esc(x.numero_processo || "")}</div>
+        <div>${pill(x.favoravel_consumidor)} <b>${esc(x.tema || "")}</b> · ${esc(x.resultado || "")}${x.dano_moral_concedido ? " · dano moral " + brl(x.dano_moral_valor) : ""}${x.repeticao_dobro ? " · repetição em dobro" : ""}</div>
+        <div style="margin-top:4px">${esc(x.tese || "")}</div>
+        ${x.link ? `<div style="margin-top:4px"><a href="${esc(x.link)}" target="_blank" rel="noopener" style="color:#7a5c12">Ver publicação oficial</a></div>` : ""}
+      </div>`).join("") || '<div class="carregando">Nenhuma decisão neste recorte.</div>';
+    const totPag = Math.max(1, Math.ceil(r.total / 50));
+    document.getElementById("decPag").innerHTML = `
+      <button ${pagDec === 0 ? "disabled" : ""} id="dAnt">Anterior</button>
+      <span class="aviso">Página ${pagDec + 1} de ${totPag} · ${fmt.format(r.total)} decisões</span>
+      <button ${pagDec + 1 >= totPag ? "disabled" : ""} id="dProx">Próxima</button>`;
+    document.getElementById("dAnt").onclick = () => { pagDec--; listarDecisoesAba(); };
+    document.getElementById("dProx").onclick = () => { pagDec++; listarDecisoesAba(); };
+  });
+}
+
+/* =========================  MAPA DO CEARÁ  ========================= */
+
+const MAPA = {
+  malha: null, svg: null, caminhos: new Map(), comarcas: new Map(), orgaos: [],
+  metrica: "pct", sel: null, faixaOff: new Set(), vb: null, vb0: null, nomes: false,
+};
+
+const SEM_ACENTO = s => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/-/g, " ").trim();
+const APELIDOS = { "itapaje": "itapage" };     // o IBGE ainda grafa Itapagé
+const chaveMun = s => { const k = SEM_ACENTO(s); return APELIDOS[k] || k; };
+
+const ESCALAS = {
+  pct: {
+    rotulo: "% favorável ao consumidor",
+    faixas: [
+      { lim: 75, cor: "var(--v5)", txt: "75% ou mais · ótimo" },
+      { lim: 60, cor: "var(--v4)", txt: "60 a 75% · bom" },
+      { lim: 50, cor: "var(--v3)", txt: "50 a 60% · equilibrado" },
+      { lim: 35, cor: "var(--v2)", txt: "35 a 50% · difícil" },
+      { lim: -1, cor: "var(--v1)", txt: "abaixo de 35% · ruim" },
+    ],
+    valor: c => c.merito ? 100 * c.fav / c.merito : null,
+    texto: v => v == null ? "—" : (Math.round(v * 10) / 10).toLocaleString("pt-BR") + "%",
+  },
+  vol: {
+    rotulo: "volume de decisões",
+    faixas: [
+      { lim: 500, cor: "#6b5316", txt: "500+" },
+      { lim: 250, cor: "#9c7c33", txt: "250 a 500" },
+      { lim: 100, cor: "#c9a961", txt: "100 a 250" },
+      { lim: 25, cor: "#e4cf96", txt: "25 a 100" },
+      { lim: -1, cor: "#f3e8c9", txt: "até 25" },
+    ],
+    valor: c => c.total,
+    texto: v => v == null ? "—" : fmt.format(v) + " decisões",
+  },
+  dano: {
+    rotulo: "dano moral médio",
+    faixas: [
+      { lim: 4000, cor: "#143a66", txt: "R$ 4 mil ou mais" },
+      { lim: 3000, cor: "#2b5f9e", txt: "R$ 3 a 4 mil" },
+      { lim: 2500, cor: "#5b8dc8", txt: "R$ 2,5 a 3 mil" },
+      { lim: 2000, cor: "#a9c2e3", txt: "R$ 2 a 2,5 mil" },
+      { lim: -1, cor: "#e8eef7", txt: "abaixo de R$ 2 mil" },
+    ],
+    valor: c => c.danoMedio || null,
+    texto: v => v ? brl(v) : "—",
+  },
+};
+
+function faixaDe(metrica, v) {
+  if (v == null) return -1;
+  const f = ESCALAS[metrica].faixas;
+  for (let i = 0; i < f.length; i++) if (v >= f[i].lim) return i;
+  return f.length - 1;
+}
+
+async function carregarMalha() {
+  if (MAPA.malha) return MAPA.malha;
+  const r = await fetch("ce-municipios.json");
+  if (!r.ok) throw new Error("malha " + r.status);
+  MAPA.malha = await r.json();
+  return MAPA.malha;
+}
+
+function agregarComarcas(orgaos) {
+  const m = new Map();
+  orgaos.forEach(o => {
+    const g = /Comarca de (.+?)\s*$/.exec(o.nome);
+    if (!g) return;
+    const nome = g[1], k = chaveMun(nome);
+    if (!m.has(k)) m.set(k, { nome, total: 0, fav: 0, contra: 0, merito: 0, dmQtd: 0, dmSoma: 0, orgaos: [] });
+    const c = m.get(k);
+    const fav = o.favoraveis || 0, contra = o.contrarias ?? Math.max(0, o.total - fav);
+    c.total += o.total; c.fav += fav; c.contra += contra; c.merito += fav + contra;
+    if (o.dano_moral_medio && o.dano_moral) { c.dmQtd += o.dano_moral; c.dmSoma += o.dano_moral_medio * o.dano_moral; }
+    c.orgaos.push(o);
+  });
+  m.forEach(c => { c.danoMedio = c.dmQtd ? Math.round(c.dmSoma / c.dmQtd) : null; c.peq = c.merito < 10; });
+  return m;
+}
+
+function desenharMapa() {
+  const svg = document.getElementById("svgMapa");
+  const mal = MAPA.malha;
+  // projeção simples, corrigida pelo cosseno da latitude média
+  let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9, somaLat = 0, n = 0;
+  mal.mun.forEach(m => m.r.forEach(r => { for (let i = 0; i < r.length; i += 2) { somaLat += r[i + 1]; n++; } }));
+  const k = Math.cos(somaLat / n * Math.PI / 180);
+  const px = (lon, lat) => [lon * k, -lat];
+  mal.mun.forEach(m => m.r.forEach(r => {
+    for (let i = 0; i < r.length; i += 2) {
+      const [x, y] = px(r[i], r[i + 1]);
+      if (x < minX) minX = x; if (x > maxX) maxX = x;
+      if (y < minY) minY = y; if (y > maxY) maxY = y;
+    }
+  }));
+  const pad = (maxX - minX) * .02;
+  const W = maxX - minX + pad * 2, H = maxY - minY + pad * 2;
+  MAPA.vb0 = { x: minX - pad, y: minY - pad, w: W, h: H };
+  MAPA.vb = { ...MAPA.vb0 };
+  svg.setAttribute("viewBox", `${MAPA.vb.x} ${MAPA.vb.y} ${W} ${H}`);
+
+  const defs = `<defs><pattern id="hach" width="1.6" height="1.6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0" x2="0" y2="1.6" stroke="#ffffff" stroke-width=".7" opacity=".85"/></pattern></defs>`;
+
+  let corpo = "", rotulos = "";
+  MAPA.caminhos.clear();
+  mal.mun.forEach(m => {
+    const d = m.r.map(r => {
+      let s = "";
+      for (let i = 0; i < r.length; i += 2) {
+        const [x, y] = px(r[i], r[i + 1]);
+        s += (i ? "L" : "M") + x.toFixed(3) + " " + y.toFixed(3);
+      }
+      return s + "Z";
+    }).join("");
+    const kk = chaveMun(m.n);
+    corpo += `<path class="mun" d="${d}" data-k="${kk}" data-n="${esc(m.n)}"></path>`;
+    // centro aproximado para o rótulo
+    let sx = 0, sy = 0, q = 0;
+    m.r[0] && (() => { const r = m.r[0]; for (let i = 0; i < r.length; i += 2) { const [x, y] = px(r[i], r[i + 1]); sx += x; sy += y; q++; } })();
+    if (q) rotulos += `<text class="rotulo" data-k="${kk}" x="${(sx / q).toFixed(2)}" y="${(sy / q).toFixed(2)}" text-anchor="middle" style="display:none">${esc(m.n)}</text>`;
+  });
+  svg.innerHTML = defs + `<g id="gMun">${corpo}</g><g id="gHach"></g><g id="gRot">${rotulos}</g>`;
+  svg.querySelectorAll("path.mun").forEach(p => MAPA.caminhos.set(p.dataset.k, p));
+
+  ligarInteracoes(svg);
+  pintarMapa();
+}
+
+function pintarMapa() {
+  const esc0 = ESCALAS[MAPA.metrica];
+  const busca = SEM_ACENTO(document.getElementById("mBusca").value || "");
+  let hach = "";
+  MAPA.caminhos.forEach((p, k) => {
+    const c = MAPA.comarcas.get(k);
+    const v = c ? esc0.valor(c) : null;
+    const fx = c ? faixaDe(MAPA.metrica, v) : -1;
+    p.setAttribute("fill", fx < 0 ? "var(--semdado)" : esc0.faixas[fx].cor);
+    p.classList.toggle("clicavel", !!c);
+    const foraFaixa = fx >= 0 && MAPA.faixaOff.has(fx);
+    const foraBusca = busca && !(c && SEM_ACENTO(c.nome).includes(busca));
+    p.classList.toggle("apagado", !c || foraFaixa || foraBusca);
+    p.classList.toggle("sel", MAPA.sel === k);
+    if (c && c.peq && !foraFaixa && !foraBusca) hach += `<path d="${p.getAttribute("d")}" fill="url(#hach)" stroke="none" pointer-events="none"></path>`;
+  });
+  document.getElementById("gHach").innerHTML = hach;
+  document.querySelectorAll("#gRot text").forEach(t => {
+    const c = MAPA.comarcas.get(t.dataset.k);
+    const mostrar = MAPA.nomes ? !!c : (MAPA.sel === t.dataset.k);
+    t.style.display = mostrar ? "" : "none";
+  });
+  desenharLegenda();
+  desenharRanking();
+}
+
+function desenharLegenda() {
+  const e = ESCALAS[MAPA.metrica];
+  document.getElementById("mLegenda").innerHTML =
+    `<span class="aviso" style="align-self:center;margin-right:4px">${e.rotulo}:</span>` +
+    e.faixas.map((f, i) => `<button data-f="${i}" class="${MAPA.faixaOff.has(i) ? "off" : ""}"><i style="background:${f.cor}"></i>${f.txt}</button>`).join("") +
+    `<button data-f="-1" style="cursor:default"><i style="background:var(--semdado)"></i>sem decisões</button>`;
+  document.querySelectorAll("#mLegenda button[data-f]").forEach(b => b.onclick = () => {
+    const i = Number(b.dataset.f);
+    if (i < 0) return;
+    MAPA.faixaOff.has(i) ? MAPA.faixaOff.delete(i) : MAPA.faixaOff.add(i);
+    pintarMapa();
+  });
+}
+
+function desenharRanking() {
+  const e = ESCALAS[MAPA.metrica];
+  const lista = [...MAPA.comarcas.entries()]
+    .map(([k, c]) => ({ k, c, v: e.valor(c) }))
+    .filter(x => x.v != null && (MAPA.metrica !== "pct" || c_merito(x.c)));
+  lista.sort((a, b) => b.v - a.v);
+  const linha = x => {
+    const fx = faixaDe(MAPA.metrica, x.v);
+    return `<li data-k="${x.k}"><span class="pt" style="background:${ESCALAS[MAPA.metrica].faixas[fx].cor}"></span>
+      <span class="nm">${esc(x.c.nome)}${x.c.peq ? ' <span class="peq">·</span>' : ""}</span>
+      <span class="vl">${e.texto(x.v)}</span></li>`;
+  };
+  const titulo = MAPA.metrica === "pct" ? ["Melhores comarcas", "Piores comarcas"]
+    : MAPA.metrica === "vol" ? ["Mais movimentadas", "Menos movimentadas"]
+    : ["Maiores indenizações", "Menores indenizações"];
+  document.getElementById("mRanks").innerHTML = `
+    <div class="rank-bloco"><h3>${titulo[0]}</h3><ol>${lista.slice(0, 8).map(linha).join("")}</ol></div>
+    <div class="rank-bloco"><h3>${titulo[1]}</h3><ol>${lista.slice(-8).reverse().map(linha).join("")}</ol></div>
+    <div class="aviso">${fmt.format(lista.length)} comarcas no recorte. Clique para abrir no mapa.</div>`;
+  document.querySelectorAll("#mRanks li").forEach(li => li.onclick = () => selecionarComarca(li.dataset.k, true));
+}
+const c_merito = c => c.merito >= 10;
+
+function ligarInteracoes(svg) {
+  const tip = document.getElementById("tipMapa");
+  const box = svg.parentElement;
+  const e = () => ESCALAS[MAPA.metrica];
+
+  svg.addEventListener("mousemove", ev => {
+    const p = ev.target.closest("path.mun");
+    if (!p) { tip.style.opacity = 0; return; }
+    const c = MAPA.comarcas.get(p.dataset.k);
+    const r = box.getBoundingClientRect();
+    tip.style.opacity = 1;
+    tip.style.left = Math.min(ev.clientX - r.left + 14, r.width - 240) + "px";
+    tip.style.top = (ev.clientY - r.top + 14) + "px";
+    if (!c) { tip.innerHTML = `<b>${esc(p.dataset.n)}</b><br>sem decisões no radar`; return; }
+    const pf = c.merito ? 100 * c.fav / c.merito : 0;
+    tip.innerHTML = `<b>Comarca de ${esc(c.nome)}</b><br>
+      ${fmt.format(c.total)} decisões · ${fmt.format(c.merito)} de mérito<br>
+      ${ESCALAS.pct.texto(c.merito ? pf : null)} favoráveis ao consumidor
+      <div class="tbar"><i style="width:${pf}%;background:var(--v5)"></i><i style="width:${c.merito ? 100 - pf : 0}%;background:var(--v1)"></i></div>
+      dano moral médio: ${c.danoMedio ? brl(c.danoMedio) : "—"}<br>
+      ${c.orgaos.length} ${c.orgaos.length === 1 ? "vara" : "varas"}${c.peq ? " · amostra pequena" : ""}`;
+  });
+  svg.addEventListener("mouseleave", () => tip.style.opacity = 0);
+  svg.addEventListener("click", ev => {
+    const p = ev.target.closest("path.mun");
+    if (p && MAPA.comarcas.has(p.dataset.k)) selecionarComarca(p.dataset.k, false);
+  });
+
+  // zoom pela roda do mouse
+  svg.addEventListener("wheel", ev => {
+    ev.preventDefault();
+    const r = svg.getBoundingClientRect();
+    const fx = (ev.clientX - r.left) / r.width, fy = (ev.clientY - r.top) / r.height;
+    const f = ev.deltaY < 0 ? .82 : 1.22;
+    const w = Math.min(MAPA.vb0.w, MAPA.vb.w * f), h = Math.min(MAPA.vb0.h, MAPA.vb.h * f);
+    MAPA.vb = { x: MAPA.vb.x + (MAPA.vb.w - w) * fx, y: MAPA.vb.y + (MAPA.vb.h - h) * fy, w, h };
+    aplicarVb(svg);
+  }, { passive: false });
+
+  // arrastar
+  let arr = null;
+  svg.addEventListener("pointerdown", ev => { arr = { x: ev.clientX, y: ev.clientY, vb: { ...MAPA.vb } }; svg.classList.add("arrastando"); });
+  svg.addEventListener("pointermove", ev => {
+    if (!arr) return;
+    const r = svg.getBoundingClientRect();
+    MAPA.vb = { ...arr.vb, x: arr.vb.x - (ev.clientX - arr.x) * arr.vb.w / r.width, y: arr.vb.y - (ev.clientY - arr.y) * arr.vb.h / r.height };
+    aplicarVb(svg);
+  });
+  const solta = () => { arr = null; svg.classList.remove("arrastando"); };
+  svg.addEventListener("pointerup", solta); svg.addEventListener("pointerleave", solta);
+  svg.addEventListener("dblclick", () => { MAPA.vb = { ...MAPA.vb0 }; aplicarVb(svg); });
+}
+function aplicarVb(svg) { svg.setAttribute("viewBox", `${MAPA.vb.x} ${MAPA.vb.y} ${MAPA.vb.w} ${MAPA.vb.h}`); }
+
+function aproximarEm(k) {
+  const p = MAPA.caminhos.get(k), svg = document.getElementById("svgMapa");
+  if (!p) return;
+  const b = p.getBBox(), m = Math.max(b.width, b.height) * 2.2;
+  MAPA.vb = { x: b.x + b.width / 2 - m / 2, y: b.y + b.height / 2 - m / 2, w: m, h: m };
+  aplicarVb(svg);
+}
+
+function selecionarComarca(k, zoom) {
+  MAPA.sel = MAPA.sel === k && !zoom ? null : k;
+  pintarMapa();
+  if (MAPA.sel && zoom) aproximarEm(MAPA.sel);
+  const alvo = document.getElementById("mapaDetalhe");
+  if (!MAPA.sel) { alvo.innerHTML = ""; return; }
+  const c = MAPA.comarcas.get(MAPA.sel);
+  const pf = c.merito ? 100 * c.fav / c.merito : null;
+  const orgs = [...c.orgaos].sort((a, b) => b.total - a.total);
+  alvo.innerHTML = `<div class="det-comarca">
+    <div class="cab"><h3>Comarca de ${esc(c.nome)}</h3>
+      ${c.peq ? '<span class="peq">amostra pequena</span>' : ""}
+      <button class="mini" id="mFechaDet" style="margin-left:auto">Fechar</button></div>
+    <div class="quadro">
+      <div><b>${fmt.format(c.total)}</b><span>decisões no radar</span></div>
+      <div><b>${ESCALAS.pct.texto(pf)}</b><span>favoráveis ao consumidor (${fmt.format(c.merito)} de mérito)</span></div>
+      <div><b>${c.danoMedio ? brl(c.danoMedio) : "—"}</b><span>dano moral médio</span></div>
+      <div><b>${fmt.format(orgs.length)}</b><span>${orgs.length === 1 ? "vara" : "varas"} na comarca</span></div>
+    </div>
+    <table><thead><tr><th>Vara</th><th>Decisões</th><th>% favorável</th><th>Dano moral médio</th></tr></thead>
+    <tbody>${orgs.map(o => {
+      const fav = o.favoraveis || 0, contra = o.contrarias ?? Math.max(0, o.total - fav), mer = fav + contra;
+      const p = mer ? 100 * fav / mer : 0;
+      return `<tr class="click" data-id="${o.id}">
+        <td><b>${esc(o.nome)}</b></td>
+        <td>${fmt.format(o.total)}</td>
+        <td><div style="display:flex;gap:8px;align-items:center"><div class="bar"><i style="width:${p}%;background:var(--v5)"></i><i style="width:${mer ? 100 - p : 0}%;background:var(--v1)"></i></div>${mer ? ESCALAS.pct.texto(p) : "—"}</div></td>
+        <td>${o.dano_moral_medio ? brl(o.dano_moral_medio) : "—"}</td></tr>`;
+    }).join("")}</tbody></table>
+    <div class="aviso" style="margin-top:8px">Clique numa vara para ver as decisões dela.</div></div>`;
+  document.getElementById("mFechaDet").onclick = () => { MAPA.sel = null; pintarMapa(); alvo.innerHTML = ""; };
+  alvo.querySelectorAll("tr.click").forEach(tr => tr.onclick = () => {
+    abrirDetalhe(c.orgaos.find(o => o.id === Number(tr.dataset.id)), "orgaos");
+  });
+}
+
+async function carregarMapa() {
+  const tema = document.getElementById("mTema").value;
+  const [, orgaos] = await Promise.all([carregarMalha(), api(tema ? { q: "orgaos", tema } : { q: "orgaos" })]);
+  MAPA.orgaos = orgaos;
+  MAPA.comarcas = agregarComarcas(orgaos);
+  MAPA.sel = null;
+  document.getElementById("mapaDetalhe").innerHTML = "";
+  if (!MAPA.caminhos.size) desenharMapa(); else pintarMapa();
+}
+
+document.querySelectorAll("#mMetrica button").forEach(b => b.onclick = () => {
+  MAPA.metrica = b.dataset.m; MAPA.faixaOff.clear();
+  document.querySelectorAll("#mMetrica button").forEach(x => x.classList.toggle("on", x === b));
+  pintarMapa();
+});
+document.getElementById("mTema").onchange = () => carregarMapa();
+document.getElementById("mBusca").oninput = () => pintarMapa();
+document.getElementById("mNomes").onchange = e => { MAPA.nomes = e.target.checked; pintarMapa(); };
+document.getElementById("mReset").onclick = () => {
+  MAPA.vb = { ...MAPA.vb0 }; aplicarVb(document.getElementById("svgMapa"));
+  MAPA.faixaOff.clear(); MAPA.sel = null;
+  document.getElementById("mBusca").value = ""; document.getElementById("mapaDetalhe").innerHTML = "";
+  pintarMapa();
+};
+
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => trocarAba(b.dataset.aba));
+document.getElementById("fTema").onchange = () => { document.getElementById("detalhe").style.display = "none"; aba === "decisoes" ? (pagDec = 0, listarDecisoesAba()) : carregarPlacar(); };
+document.getElementById("fFav").onchange = () => { pagDec = 0; listarDecisoesAba(); };
+document.getElementById("fBusca").oninput = () => desenharTabela();
+
+carregarResumo().catch(e => document.getElementById("kpis").innerHTML = `<div class="carregando">Não foi possível carregar: ${esc(e.message)}</div>`);
+carregarPlacar().catch(e => document.getElementById("conteudo").innerHTML = `<div class="carregando">Não foi possível carregar: ${esc(e.message)}</div>`);
+carregarMapa().catch(e => document.getElementById("mRanks").innerHTML = `<div class="carregando">Não foi possível carregar o mapa: ${esc(e.message)}</div>`);
+</script>
+</body>
+</html>
