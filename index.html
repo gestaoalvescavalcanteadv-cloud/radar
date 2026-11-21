@@ -98,24 +98,58 @@
   .rolagem thead th{position:sticky;top:0;z-index:2}
   .rolagem table{font-size:13.5px}
   .quadro span{font-size:11.5px;color:var(--muted)}
+
+  /* ===== seletor de radar ===== */
+  header .topo{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;flex-wrap:wrap}
+  .radares{display:flex;gap:6px;background:#2a2a2a;border:1px solid #3a3a3a;border-radius:14px;padding:5px}
+  .radares button{display:flex;align-items:center;gap:9px;border:0;background:transparent;color:#cfcfcf;padding:9px 16px;border-radius:10px;
+    cursor:pointer;font:inherit;font-size:14px;font-weight:600;transition:background .2s,color .2s,transform .15s}
+  .radares button:hover{color:#fff;transform:translateY(-1px)}
+  .radares button.on{background:var(--gold);color:#1a1a1a;box-shadow:0 4px 14px rgba(201,169,97,.35)}
+  .radares button svg{width:19px;height:19px;flex:0 0 auto}
+  .radares button small{display:block;font-size:11px;font-weight:500;opacity:.75;margin-top:1px}
+  .radares button span{text-align:left;line-height:1.15}
+  main,footer{transition:opacity .25s ease}
+  body.trocando main{opacity:.35}
+  .faixa-radar{display:none;background:var(--gold-soft);border:1px solid var(--line);border-left:4px solid var(--gold);border-radius:10px;
+    padding:12px 16px;margin-bottom:18px;font-size:13.5px;line-height:1.5}
+  .faixa-radar b{color:#7a5c12}
+  .faixa-radar .prog{height:8px;border-radius:4px;background:#e9e1cc;overflow:hidden;margin-top:8px;max-width:420px}
+  .faixa-radar .prog i{display:block;height:100%;background:var(--gold);transition:width .6s ease}
+  body.r-saude .so-bancario{display:none!important}
 </style>
 </head>
 <body>
 <header>
-  <h1>Litiga<span>Radar</span></h1>
-  <p>Placar das decisões bancárias e consumeristas do TJCE, a partir das publicações oficiais do DJEN (Comunica PJe).</p>
+  <div class="topo">
+    <div>
+      <h1>Litiga<span>Radar</span></h1>
+      <p id="hSub">Placar das decisões bancárias e consumeristas do TJCE, a partir das publicações oficiais do DJEN (Comunica PJe).</p>
+    </div>
+    <nav class="radares" id="radares" aria-label="Escolher radar">
+      <button data-r="bancario" class="on" title="Bancos, financeiras e consumidor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10h18L12 4 3 10z"/><path d="M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/></svg>
+        <span>Bancário<small>bancos e consumidor</small></span>
+      </button>
+      <button data-r="saude" title="Medicamentos, planos de saúde e direitos da pessoa autista">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7.5-4.6-9.3-9.2C1.4 8.4 3.6 5 7 5c2 0 3.3 1.1 5 3 1.7-1.9 3-3 5-3 3.4 0 5.6 3.4 4.3 6.8C19.5 16.4 12 21 12 21z"/><path d="M12 10v5M9.5 12.5h5"/></svg>
+        <span>Saúde e autismo<small>medicamentos, planos, TEA</small></span>
+      </button>
+    </nav>
+  </div>
 </header>
 
 <main>
+  <div class="faixa-radar" id="faixaRadar"></div>
   <section class="kpis" id="kpis"><div class="carregando">Carregando…</div></section>
 
   <section class="card" id="cardMapa">
-    <h2>Mapa do Ceará · onde vale a pena entrar com a ação</h2>
-    <div class="sub" id="mSub">Verde é comarca que decide a favor do consumidor; vermelho é comarca que decide contra. Passe o mouse para ver os números, clique para abrir a comarca, use a roda do mouse para dar zoom.</div>
+    <h2 id="mTitulo">Mapa do Ceará · onde vale a pena entrar com a ação</h2>
+    <div class="sub" id="mSub"></div>
     <div class="mapa-ctrl">
       <div class="seg" id="mVisao">
         <button data-v="dec" class="on">Decisões do TJCE</button>
-        <button data-v="opo">Oportunidade de mercado</button>
+        <button data-v="opo" class="so-bancario">Oportunidade de mercado</button>
       </div>
     </div>
     <div class="mapa-ctrl">
@@ -137,7 +171,7 @@
     <div class="aviso" style="margin-top:12px" id="mRodape"></div>
   </section>
 
-  <section class="card" id="cardMercado">
+  <section class="card so-bancario" id="cardMercado">
     <h2>Os 184 municípios · potencial de mercado jurídico</h2>
     <div class="sub">Índice de Potencial Jurídico Municipal (IPJM) a partir de dados oficiais do IBGE, do Ministério da Previdência e das decisões do próprio radar. Clique no cabeçalho para ordenar.</div>
     <div class="mapa-ctrl">
@@ -155,7 +189,7 @@
     <div id="tTabela" class="rolagem"><div class="carregando">Carregando…</div></div>
   </section>
 
-  <section class="card" id="cardProjecao">
+  <section class="card so-bancario" id="cardProjecao">
     <h2>Projeção de receita por município</h2>
     <div class="sub">Os números abaixo são <b>premissas suas</b>, não dados: mexa nos controles e a projeção se refaz para os municípios do recorte escolhido acima.</div>
     <div id="projCtrl" class="quadro"></div>
@@ -165,7 +199,7 @@
 
   <section class="card">
     <h2>Resultado por tema</h2>
-    <div class="sub">Decisões favoráveis e contrárias ao consumidor em cada tema (acordos e extinções sem mérito ficam fora).</div>
+    <div class="sub" id="temasSub">Decisões favoráveis e contrárias ao consumidor em cada tema (acordos e extinções sem mérito ficam fora).</div>
     <div class="chart-wrap"><canvas id="graficoTemas"></canvas></div>
   </section>
 
@@ -180,8 +214,8 @@
       <input id="fBusca" placeholder="Buscar nome do magistrado ou do órgão…">
       <select id="fFav" style="display:none">
         <option value="">Favoráveis e contrárias</option>
-        <option value="true">Só favoráveis ao consumidor</option>
-        <option value="false">Só contrárias ao consumidor</option>
+        <option value="true" id="optFav">Só favoráveis ao consumidor</option>
+        <option value="false" id="optContra">Só contrárias ao consumidor</option>
       </select>
     </div>
     <div id="conteudo"><div class="carregando">Carregando…</div></div>
@@ -205,13 +239,32 @@
 
 <script>
 const API = "https://wvvhlhyfzzoexaywyamm.supabase.co/functions/v1/radar-api";
+
+/* ===== os radares: mesma tela, dados e textos de cada um ===== */
+const RADARES = {
+  bancario: {
+    titulo: "LitigaRadar · Placar de decisões bancárias do TJCE",
+    sub: "Placar das decisões bancárias e consumeristas do TJCE, a partir das publicações oficiais do DJEN (Comunica PJe).",
+    quem: "consumidor", aoQuem: "ao consumidor",
+    mapa: "Mapa do Ceará · onde vale a pena entrar com a ação",
+  },
+  saude: {
+    titulo: "LitigaRadar · Saúde e direitos do autista",
+    sub: "Placar das decisões sobre medicamentos, planos de saúde, terapias e direitos da pessoa autista no TJCE e no TRF5, a partir do DJEN (Comunica PJe).",
+    quem: "paciente", aoQuem: "ao paciente",
+    mapa: "Mapa do Ceará · onde a Justiça garante o tratamento",
+  },
+};
+let RADAR = location.hash === "#saude" ? "saude" : "bancario";
+const R = () => RADARES[RADAR];
+let chartTemas = null;
 const fmt = new Intl.NumberFormat("pt-BR");
 const brl = v => v == null ? "—" : v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const NOME_RUIM = /(poder judici|tribunal de justi|gabinete|comarca de|data de ingresso|direito privado|secretaria)/i;
 const nomeOk = n => n && n.trim().length >= 8 && !NOME_RUIM.test(n);
 async function api(params) {
-  const r = await fetch(API + "?" + new URLSearchParams(params));
+  const r = await fetch(API + "?" + new URLSearchParams({ ...params, radar: RADAR }));
   if (!r.ok) throw new Error("Erro " + r.status);
   const j = await r.json();
   if (params.q === "magistrados") return j.filter(m => nomeOk(m.nome));
@@ -231,7 +284,7 @@ async function carregarResumo() {
   const r = await api({ q: "resumo" });
   document.getElementById("kpis").innerHTML = [
     [fmt.format(r.decisoes), "decisões classificadas"],
-    [r.pct_favoravel == null ? "—" : r.pct_favoravel.toLocaleString("pt-BR") + "%", "favoráveis ao consumidor"],
+    [r.pct_favoravel == null ? "—" : r.pct_favoravel.toLocaleString("pt-BR") + "%", "favoráveis " + R().aoQuem],
     [brl(r.dano_moral_medio), "dano moral médio fixado"],
     [fmt.format(r.magistrados), "magistrados no radar"],
     [fmt.format(r.orgaos), "varas e câmaras"],
@@ -239,18 +292,21 @@ async function carregarResumo() {
   ].map(([v, l]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("") +
   (r.pendentes_ficha ? `<div class="kpi"><div class="v">${fmt.format(r.pendentes_ficha)}</div><div class="l">aguardando leitura pela IA</div></div>` : "");
 
+  desenharFaixa(r);
   ["fTema", "mTema"].forEach(id => {
     const sel = document.getElementById(id);
+    sel.length = 1;
     r.temas.forEach(t => sel.insertAdjacentHTML("beforeend", `<option>${esc(t.tema)}</option>`));
   });
 
-  new Chart(document.getElementById("graficoTemas"), {
+  if (chartTemas) chartTemas.destroy();
+  chartTemas = new Chart(document.getElementById("graficoTemas"), {
     type: "bar",
     data: {
       labels: r.temas.map(t => t.tema),
       datasets: [
-        { label: "Favoráveis ao consumidor", data: r.temas.map(t => t.favoraveis), backgroundColor: "#2e7d5b" },
-        { label: "Contrárias ao consumidor", data: r.temas.map(t => t.contrarias), backgroundColor: "#b4473c" },
+        { label: "Favoráveis " + R().aoQuem, data: r.temas.map(t => t.favoraveis), backgroundColor: "#2e7d5b" },
+        { label: "Contrárias " + R().aoQuem, data: r.temas.map(t => t.contrarias), backgroundColor: "#b4473c" },
       ],
     },
     options: { responsive: true, maintainAspectRatio: false, indexAxis: "y",
@@ -303,7 +359,7 @@ async function abrirDetalhe(d, tipo) {
   const det = document.getElementById("detalhe");
   det.style.display = "block";
   document.getElementById("detTitulo").textContent = d.nome;
-  document.getElementById("detSub").innerHTML = `${fmt.format(d.total)} decisões · ${d.pct_favoravel == null ? "—" : d.pct_favoravel.toLocaleString("pt-BR") + "% favoráveis ao consumidor"} · dano moral em ${fmt.format(d.dano_moral)} (média ${brl(d.dano_moral_medio)})${d.amostra_pequena ? ' · <span class="peq">amostra pequena</span>' : ""}`;
+  document.getElementById("detSub").innerHTML = `${fmt.format(d.total)} decisões · ${d.pct_favoravel == null ? "—" : d.pct_favoravel.toLocaleString("pt-BR") + "% favoráveis " + R().aoQuem} · dano moral em ${fmt.format(d.dano_moral)} (média ${brl(d.dano_moral_medio)})${d.amostra_pequena ? ' · <span class="peq">amostra pequena</span>' : ""}`;
   const temas = Object.entries(d.temas || {}).sort((a, b) => b[1] - a[1]);
   if (chartDet) chartDet.destroy();
   chartDet = new Chart(document.getElementById("graficoDet"), {
@@ -328,7 +384,7 @@ async function listarDecisoes(filtro, alvo, alvoPag) {
   el.innerHTML = `<div class="lista">${r.itens.map(x => `
     <div class="item">
       <div class="meta">${x.data_disponibilizacao ? x.data_disponibilizacao.split("-").reverse().join("/") : ""} · ${esc(x.orgaos?.nome || "")}${x.magistrados?.nome ? " · " + esc(x.magistrados.nome) : ""} · ${esc(x.numero_processo || "")}</div>
-      <div>${pill(x.favoravel_consumidor)} <b>${esc(x.tema || "")}</b> · ${esc(x.resultado || "")}${x.dano_moral_concedido ? " · dano moral " + brl(x.dano_moral_valor) : ""}${x.repeticao_dobro ? " · repetição em dobro" : ""}</div>
+      <div>${pill(x.favoravel_consumidor)} <b>${esc(x.tema || "")}</b>${x.subtema ? " · " + esc(x.subtema) : ""} · ${esc(x.resultado || "")}${x.dano_moral_concedido ? " · dano moral " + brl(x.dano_moral_valor) : ""}${x.repeticao_dobro ? " · repetição em dobro" : ""}</div>
       <div style="margin-top:4px">${esc(x.tese || "")}</div>
       ${x.link ? `<div style="margin-top:4px"><a href="${esc(x.link)}" target="_blank" rel="noopener">Ver publicação oficial</a></div>` : ""}
     </div>`).join("") || '<div class="carregando">Nenhuma decisão neste recorte.</div>'}</div>`;
@@ -368,7 +424,7 @@ function listarDecisoesAba() {
     el.innerHTML = r.itens.map(x => `
       <div class="item" style="border-bottom:1px solid var(--line);padding:12px 0">
         <div class="aviso">${x.data_disponibilizacao ? x.data_disponibilizacao.split("-").reverse().join("/") : ""} · ${esc(x.orgaos?.nome || "")}${x.magistrados?.nome ? " · " + esc(x.magistrados.nome) : ""} · ${esc(x.numero_processo || "")}</div>
-        <div>${pill(x.favoravel_consumidor)} <b>${esc(x.tema || "")}</b> · ${esc(x.resultado || "")}${x.dano_moral_concedido ? " · dano moral " + brl(x.dano_moral_valor) : ""}${x.repeticao_dobro ? " · repetição em dobro" : ""}</div>
+        <div>${pill(x.favoravel_consumidor)} <b>${esc(x.tema || "")}</b>${x.subtema ? " · " + esc(x.subtema) : ""} · ${esc(x.resultado || "")}${x.dano_moral_concedido ? " · dano moral " + brl(x.dano_moral_valor) : ""}${x.repeticao_dobro ? " · repetição em dobro" : ""}</div>
         <div style="margin-top:4px">${esc(x.tese || "")}</div>
         ${x.link ? `<div style="margin-top:4px"><a href="${esc(x.link)}" target="_blank" rel="noopener" style="color:#7a5c12">Ver publicação oficial</a></div>` : ""}
       </div>`).join("") || '<div class="carregando">Nenhuma decisão neste recorte.</div>';
@@ -437,7 +493,7 @@ const ESCALAS = {
     valor: m => m.rurpct, texto: v => v == null ? "—" : v.toLocaleString("pt-BR") + "% rurais",
   },
   pct: {
-    visao: "dec", botao: "% favorável", rotulo: "% favorável ao consumidor",
+    visao: "dec", botao: "% favorável", get rotulo() { return "% favorável " + R().aoQuem; },
     faixas: [
       { lim: 75, cor: "#00a651", txt: "75% ou mais · ótimo" },
       { lim: 60, cor: "#7ac143", txt: "60 a 75% · bom" },
@@ -518,7 +574,7 @@ function desenharBotoesMetrica() {
 function agregarComarcas(orgaos) {
   const m = new Map();
   orgaos.forEach(o => {
-    const g = /Comarca de (.+?)\s*$/.exec(o.nome);
+    const g = /Comarca de (.+?)\s*$/.exec(o.nome) || /Subse[çc][ãa]o Judici[áa]ria de (.+?)(\/CE| - CE)?\s*$/i.exec(o.nome);
     if (!g) return;
     const nome = g[1], k = chaveMun(nome);
     if (!m.has(k)) m.set(k, { nome, total: 0, fav: 0, contra: 0, merito: 0, dmQtd: 0, dmSoma: 0, orgaos: [] });
@@ -608,7 +664,7 @@ function pintarMapa() {
     t.style.display = (MAPA.nomes ? temDado : MAPA.sel === t.dataset.c) ? "" : "none";
   });
   document.getElementById("mSub").innerHTML = MAPA.visao === "dec"
-    ? "Verde é comarca que decide a favor do consumidor; vermelho é comarca que decide contra. Passe o mouse para ver os números, clique para abrir a comarca, use a roda do mouse para dar zoom."
+    ? "Verde é comarca que decide a favor do " + R().quem + "; vermelho é comarca que decide contra. Passe o mouse para ver os números, clique para abrir a comarca, use a roda do mouse para dar zoom."
     : "Onde estão os clientes: benefícios do INSS, população idosa, clientela rural e dinheiro pago por mês em cada um dos 184 municípios. O índice combina esses dados com a litigiosidade e a distância de Lavras.";
   document.getElementById("mRodape").innerHTML = MAPA.visao === "dec"
     ? "Cada município pintado é a <b>sede da comarca</b>; municípios sem vara própria ficam em cinza. Comarcas com menos de 10 decisões de mérito aparecem hachuradas (amostra pequena)."
@@ -683,7 +739,7 @@ function ligarInteracoes(svg) {
     const c = reg, pf = c.merito ? 100 * c.fav / c.merito : 0;
     tip.innerHTML = `<b>Comarca de ${esc(c.nome)}</b><br>
       ${fmt.format(c.total)} decisões · ${fmt.format(c.merito)} de mérito<br>
-      ${ESCALAS.pct.texto(c.merito ? pf : null)} favoráveis ao consumidor
+      ${ESCALAS.pct.texto(c.merito ? pf : null)} favoráveis ${R().aoQuem}
       <div class="tbar"><i style="width:${pf}%;background:#00a651"></i><i style="width:${c.merito ? 100 - pf : 0}%;background:#e03131"></i></div>
       dano moral médio: ${c.danoMedio ? brl(c.danoMedio) : "—"}<br>
       ${c.orgaos.length} ${c.orgaos.length === 1 ? "vara" : "varas"}${c.peq ? " · amostra pequena" : ""}`;
@@ -745,7 +801,7 @@ function selecionarComarca(cod, zoom) {
       <button class="mini" id="mFechaDet" style="margin-left:auto">Fechar</button></div>
     <div class="quadro">
       <div><b>${fmt.format(c.total)}</b><span>decisões no radar</span></div>
-      <div><b>${ESCALAS.pct.texto(pf)}</b><span>favoráveis ao consumidor (${fmt.format(c.merito)} de mérito)</span></div>
+      <div><b>${ESCALAS.pct.texto(pf)}</b><span>favoráveis ${R().aoQuem} (${fmt.format(c.merito)} de mérito)</span></div>
       <div><b>${c.danoMedio ? brl(c.danoMedio) : "—"}</b><span>dano moral médio</span></div>
       <div><b>${fmt.format(orgs.length)}</b><span>${orgs.length === 1 ? "vara" : "varas"} na comarca</span></div>
     </div>
@@ -950,6 +1006,54 @@ document.getElementById("tMetodo").onclick = () => {
     <ul style="font-size:13px;margin:0;padding-left:18px;color:var(--muted)">${Object.values(j.fontes).map(f => `<li>${esc(f)}</li>`).join("")}</ul>
   </div>`;
 };
+
+function desenharFaixa(r) {
+  const el = document.getElementById("faixaRadar");
+  if (RADAR !== "saude") { el.style.display = "none"; return; }
+  const dias = r.dias_coletados || 0, meta = 364, pct = Math.min(100, Math.round(100 * dias / meta));
+  el.style.display = "block";
+  el.innerHTML = `<b>Radar novo, em carga.</b> O robô está lendo o DJEN dos últimos 6 meses do TJCE e do TRF5 em busca de decisões sobre
+    medicamentos, planos de saúde, terapias (ABA, fono, TO), cirurgias, home care e direitos da pessoa autista.
+    ${fmt.format(dias)} de ${meta} dias já varridos${r.pendentes_ficha ? ` · ${fmt.format(r.pendentes_ficha)} decisões aguardando leitura pela IA` : ""}.
+    Muitos processos de saúde de crianças correm em segredo de justiça e saem no DJEN com pouco texto, então o placar tende a ser menor que o bancário.
+    <div class="prog"><i style="width:${pct}%"></i></div>`;
+}
+
+function aplicarTextos() {
+  document.title = R().titulo;
+  document.getElementById("hSub").textContent = R().sub;
+  document.getElementById("mTitulo").textContent = R().mapa;
+  document.getElementById("temasSub").textContent = `Decisões favoráveis e contrárias ${R().aoQuem} em cada tema (acordos e extinções sem mérito ficam fora).`;
+  document.getElementById("optFav").textContent = "Só favoráveis " + R().aoQuem;
+  document.getElementById("optContra").textContent = "Só contrárias " + R().aoQuem;
+  document.body.classList.toggle("r-saude", RADAR === "saude");
+  document.querySelectorAll("#radares button").forEach(b => b.classList.toggle("on", b.dataset.r === RADAR));
+}
+
+async function trocarRadar(novo) {
+  if (novo === RADAR) return;
+  RADAR = novo;
+  history.replaceState(null, "", novo === "saude" ? "#saude" : location.pathname + location.search);
+  document.body.classList.add("trocando");
+  aplicarTextos();
+  if (RADAR === "saude" && MAPA.visao === "opo") document.querySelector('#mVisao button[data-v="dec"]').click();
+  document.getElementById("fTema").value = ""; document.getElementById("mTema").value = "";
+  document.getElementById("detalhe").style.display = "none";
+  document.getElementById("kpis").innerHTML = '<div class="carregando">Carregando…</div>';
+  try {
+    await Promise.all([
+      carregarResumo(),
+      aba === "decisoes" ? (pagDec = 0, listarDecisoesAba()) : carregarPlacar(),
+      carregarMapa(),
+    ]);
+  } catch (e) {
+    document.getElementById("kpis").innerHTML = `<div class="carregando">Não foi possível carregar: ${esc(e.message)}</div>`;
+  }
+  document.body.classList.remove("trocando");
+}
+document.querySelectorAll("#radares button").forEach(b => b.onclick = () => trocarRadar(b.dataset.r));
+window.addEventListener("hashchange", () => trocarRadar(location.hash === "#saude" ? "saude" : "bancario"));
+aplicarTextos();
 
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => trocarAba(b.dataset.aba));
 document.getElementById("fTema").onchange = () => { document.getElementById("detalhe").style.display = "none"; aba === "decisoes" ? (pagDec = 0, listarDecisoesAba()) : carregarPlacar(); };

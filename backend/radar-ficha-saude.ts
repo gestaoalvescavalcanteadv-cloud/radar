@@ -1,0 +1,94 @@
+// LitigaRadar - ficha pela IA das decisoes do radar de SAUDE / DIREITOS DO AUTISTA
+// Pega as decisoes com ficha_status = 'fila_saude', le com o Claude e grava tema, resultado e tese.
+// Parametros (JSON): lote (padrao 40), paralelo (padrao 8)
+import { createClient } from "jsr:@supabase/supabase-js@2";
+
+const MODELO = "claude-haiku-5-5";
+const PRECO_ENTRADA = 0.10 / 1e6, PRECO_SAIDA = 0.50 / 1e6;   // US$ por token (mesmo calculo da ficha bancaria)
+
+const TEMAS = [
+  "Medicamento contra o poder público (SUS)",
+  "Medicamento contra plano de saúde",
+  "Terapias para autismo contra plano de saúde",
+  "Terapias para autismo contra o poder público",
+  "Cirurgia, internação e UTI",
+  "Home care, insumos e fórmulas",
+  "Negativa de cobertura e reajuste de plano",
+  "Educação inclusiva e acompanhante (autismo)",
+  "Benefício ou isenção (autismo)",
+  "Outros de saúde",
+];
+
+const SISTEMA = [
+  "Você lê publicações oficiais do Diário de Justiça (DJEN) e preenche uma ficha sobre decisões judiciais em matéria de SAÚDE e DIREITOS DA PESSOA AUTISTA.",
+  "Responda SOMENTE com um objeto JSON, sem texto antes ou depois, com estas chaves:",
+  "- relevante (boolean): true só se o texto traz uma DECISÃO (sentença, acórdão, decisão de tutela/liminar) cujo objeto é saúde (medicamento, tratamento, terapia, cirurgia, internação, plano de saúde, home care, insumo) ou direito da pessoa autista (terapias, educação inclusiva, acompanhante, benefício). Despachos de mero expediente, citações, atos ordinatórios ou assuntos alheios = false.",
+  "- tema (string): exatamente um destes: " + TEMAS.join(" | ") + ".",
+  "- subtema (string curta, ex.: 'ABA sem limite de sessões', 'canabidiol', 'medicamento fora do rol', 'reajuste por faixa etária').",
+  "- resultado (string): um destes: procedente | parcialmente procedente | improcedente | tutela deferida | tutela indeferida | provido | parcialmente provido | desprovido | acordo | extinto | outro.",
+  "- polo_consumidor (string): 'autor' se o paciente/pessoa autista (ou quem pede o tratamento) é autor/apelante/agravante; 'reu' se é réu/apelado/agravado; 'indefinido'.",
+  "- favoravel_consumidor (boolean ou null): true se a decisão, no resultado final, favorece o paciente/pessoa autista (concede o tratamento, mantém a condenação do plano ou do ente público, nega recurso do plano/ente); false se nega ou retira o direito; null se acordo, extinção sem mérito ou impossível saber.",
+  "- dano_moral_concedido (boolean): true só se fixou indenização por dano moral em favor do paciente.",
+  "- dano_moral_valor (number ou null): valor do dano moral em reais, se fixado.",
+  "- tese (string até 300 caracteres): o fundamento central em linguagem simples, ex.: 'Rol da ANS é exemplificativo (Lei 14.454/2022); plano deve custear ABA sem limite de sessões.'",
+  "- confianca (string): alta | media | baixa.",
+  "- magistrado (string ou null): nome do juiz ou relator que assina, se aparecer.",
+].join("\n");
+
+Deno.serve(async (req) => {
+  const body = await req.json().catch(() => ({}));
+  const lote = Math.min(Number(body.lote || 40), 120), paralelo = Math.min(Number(body.paralelo || 8), 16);
+  const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  const chave = Deno.env.get("ANTHROPIC_API_KEY")!;
+
+  const { data: fila } = await db.from("decisoes").select("id,texto,trecho,classe,tipo_documento,tribunal,magistrado_id")
+    .eq("ficha_status", "fila_saude").order("data_disponibilizacao", { ascending: false }).limit(lote);
+  let ok = 0, erro = 0;
+
+  async function ler(d: any) {
+    const texto = String(d.texto || d.trecho || "");
+    const corte = texto.length > 14000 ? texto.slice(0, 5000) + "\n[...]\n" + texto.slice(-9000) : texto;
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "x-api-key": chave, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+        body: JSON.stringify({ model: MODELO, max_tokens: 600, system: SISTEMA,
+          messages: [{ role: "user", content: "Classe: " + (d.classe || "-") + "\nTipo: " + (d.tipo_documento || "-") + "\n\n" + corte }] }),
+      });
+      if (!r.ok) throw new Error("IA " + r.status);
+      const j = await r.json();
+      const txt = (j.content || []).map((c: any) => c.text || "").join("");
+      const f = JSON.parse(txt.slice(txt.indexOf("{"), txt.lastIndexOf("}") + 1));
+      const tema = TEMAS.includes(f.tema) ? f.tema : "Outros de saúde";
+      const upd: any = {
+        relevante: !!f.relevante, tema, subtema: f.subtema ? String(f.subtema).slice(0, 120) : null,
+        resultado: f.resultado || null, polo_consumidor: f.polo_consumidor || null,
+        favoravel_consumidor: typeof f.favoravel_consumidor === "boolean" ? f.favoravel_consumidor : null,
+        dano_moral_concedido: !!f.dano_moral_concedido,
+        dano_moral_valor: Number(f.dano_moral_valor) > 0 ? Number(f.dano_moral_valor) : null,
+        tese: f.tese ? String(f.tese).slice(0, 400) : null, confianca: ["alta", "media", "baixa"].includes(f.confianca) ? f.confianca : "baixa",
+        ficha_status: "ok", ficha_em: new Date().toISOString(), ficha_modelo: MODELO,
+        texto: null,   // texto integral nao fica guardado depois de lido (o link oficial continua)
+      };
+      // juiz que a leitura automatica do texto nao achou: usa o nome que a IA leu na assinatura
+      const nomeMag = typeof f.magistrado === "string" ? f.magistrado.replace(/^(ju[ií]z[a]?|desembargador[a]?|relator[a]?)( de direito| federal| substitut[oa])?[\s,:-]*/i, "").trim().toUpperCase() : "";
+      if (!d.magistrado_id && nomeMag.length >= 8 && nomeMag.split(" ").length >= 2 && nomeMag.length <= 80) {
+        await db.from("magistrados").upsert({ tribunal: d.tribunal, nome: nomeMag }, { onConflict: "nome,tribunal", ignoreDuplicates: true });
+        const { data: m } = await db.from("magistrados").select("id").eq("tribunal", d.tribunal).eq("nome", nomeMag).maybeSingle();
+        if (m) upd.magistrado_id = m.id;
+      }
+      await db.from("decisoes").update(upd).eq("id", d.id);
+      const u = j.usage || {};
+      await db.from("ia_consumo").insert({ decisao_id: d.id, modelo: MODELO, tokens_entrada: u.input_tokens || 0,
+        tokens_saida: u.output_tokens || 0, custo_usd: (u.input_tokens || 0) * PRECO_ENTRADA + (u.output_tokens || 0) * PRECO_SAIDA });
+      ok++;
+    } catch (_e) {
+      await db.from("decisoes").update({ ficha_status: "erro_saude", ficha_em: new Date().toISOString() }).eq("id", d.id);
+      erro++;
+    }
+  }
+
+  const lista = fila || [];
+  for (let i = 0; i < lista.length; i += paralelo) await Promise.all(lista.slice(i, i + paralelo).map(ler));
+  return Response.json({ lidas: lista.length, ok, erro });
+});
