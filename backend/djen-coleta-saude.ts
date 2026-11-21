@@ -51,9 +51,20 @@ async function sha(s: string) {
   return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };
+
 Deno.serve(async (req) => {
-  const t0 = Date.now();
   const body = await req.json().catch(() => ({}));
+  // no modo automatico (agendado) responde na hora e trabalha em segundo plano, como a coleta bancaria
+  if (body.auto === true && !body.esperar) {
+    EdgeRuntime.waitUntil(coletar(body).catch((e) => console.error("coleta saude", e)));
+    return Response.json({ aceito: true });
+  }
+  return Response.json(await coletar(body));
+});
+
+async function coletar(body: any) {
+  const t0 = Date.now();
   const tribunal = String(body.tribunal || "TJCE").toUpperCase();
   const ontem = new Date(Date.now() - 86400000 - 3 * 3600000).toISOString().slice(0, 10);
   const data = String(body.data || ontem);
@@ -65,7 +76,7 @@ Deno.serve(async (req) => {
   let pagina = Number(body.paginaInicial || 1);
   if (auto) {
     const { data: p } = await db.from("coleta_progresso_saude").select("*").eq("tribunal", tribunal).eq("data", data).maybeSingle();
-    if (p?.concluido) return Response.json({ tribunal, data, ja_concluido: true });
+    if (p?.concluido) return { tribunal, data, ja_concluido: true };
     if (p?.proxima_pagina) pagina = p.proxima_pagina;
   }
 
@@ -89,6 +100,18 @@ Deno.serve(async (req) => {
   }
 
   let candidatas = 0, lidas = 0, gravadas = 0, ultimo = "", fim = false, feitas = 0;
+  let base = { lidas: 0, gravadas: 0 };
+  if (auto && gravar) {
+    const { data: p } = await db.from("coleta_progresso_saude").select("lidas,gravadas").eq("tribunal", tribunal).eq("data", data).maybeSingle();
+    if (p) base = { lidas: p.lidas || 0, gravadas: p.gravadas || 0 };
+  }
+  async function salvarProgresso() {
+    if (!auto || !gravar) return;
+    await db.from("coleta_progresso_saude").upsert({
+      tribunal, data, proxima_pagina: pagina, concluido: fim, lidas: base.lidas + lidas,
+      gravadas: base.gravadas + gravadas, ultimo_status: ultimo, atualizado_em: new Date().toISOString(),
+    }, { onConflict: "tribunal,data" });
+  }
   const amostras: any[] = [];
   const vistos = new Set<string>();
   while (feitas < maxPag && Date.now() - t0 < 115000) {
@@ -101,7 +124,7 @@ Deno.serve(async (req) => {
       await new Promise((ok) => setTimeout(ok, 2500 * (tent + 1)));
     }
     ultimo = String(r?.status ?? "falha");
-    if (!r || !r.ok) break;
+    if (!r || !r.ok) { await salvarProgresso(); break; }
     const b = await r.json().catch(() => ({}));
     const itens: any[] = b.items || b.itens || [];
     lidas += itens.length;
@@ -142,15 +165,10 @@ Deno.serve(async (req) => {
     }
     if (body.teste && feitas === 1) amostras.unshift({ campos: Object.keys(itens[0] || {}) });
     pagina++;
-    if (itens.length < 100) { fim = true; break; }
+    if (itens.length < 100) fim = true;
+    await salvarProgresso();
+    if (fim) break;
   }
 
-  if (auto && gravar) {
-    const { data: p } = await db.from("coleta_progresso_saude").select("lidas,gravadas").eq("tribunal", tribunal).eq("data", data).maybeSingle();
-    await db.from("coleta_progresso_saude").upsert({
-      tribunal, data, proxima_pagina: pagina, concluido: fim, lidas: (p?.lidas || 0) + lidas,
-      gravadas: (p?.gravadas || 0) + gravadas, ultimo_status: ultimo, atualizado_em: new Date().toISOString(),
-    }, { onConflict: "tribunal,data" });
-  }
-  return Response.json({ tribunal, data, paginas: feitas, proxima_pagina: pagina, concluido: fim, lidas, candidatas, gravadas, status: ultimo, amostras });
-});
+  return { tribunal, data, paginas: feitas, proxima_pagina: pagina, concluido: fim, lidas, candidatas, gravadas, status: ultimo, amostras };
+}

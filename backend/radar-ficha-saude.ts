@@ -35,8 +35,19 @@ const SISTEMA = [
   "- magistrado (string ou null): nome do juiz ou relator que assina, se aparecer.",
 ].join("\n");
 
+declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void };
+
 Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
+  // agendado: responde na hora e le em segundo plano; com "esperar": true devolve o resultado
+  if (!body.esperar) {
+    EdgeRuntime.waitUntil(fichar(body).catch((e) => console.error("ficha saude", e)));
+    return Response.json({ aceito: true });
+  }
+  return Response.json(await fichar(body));
+});
+
+async function fichar(body: any) {
   const lote = Math.min(Number(body.lote || 40), 120), paralelo = Math.min(Number(body.paralelo || 8), 16);
   const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const chave = Deno.env.get("ANTHROPIC_API_KEY")!;
@@ -90,5 +101,5 @@ Deno.serve(async (req) => {
 
   const lista = fila || [];
   for (let i = 0; i < lista.length; i += paralelo) await Promise.all(lista.slice(i, i + paralelo).map(ler));
-  return Response.json({ lidas: lista.length, ok, erro });
-});
+  return { lidas: lista.length, ok, erro };
+}
