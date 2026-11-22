@@ -124,7 +124,7 @@
   <div class="topo">
     <div>
       <h1>Litiga<span>Radar</span></h1>
-      <p id="hSub">Placar das decisões bancárias e consumeristas do TJCE, a partir das publicações oficiais do DJEN (Comunica PJe).</p>
+      <p id="hSub">Placar das decisões bancárias e consumeristas do TJCE.</p>
     </div>
     <nav class="radares" id="radares" aria-label="Escolher radar">
       <button data-r="bancario" class="on" title="Bancos, financeiras e consumidor">
@@ -232,7 +232,7 @@
 </main>
 
 <footer>
-  Fonte: publicações oficiais do Diário de Justiça Eletrônico Nacional (DJEN). A classificação de cada decisão é feita por IA e pode conter erros;
+  A classificação de cada decisão é feita por IA e pode conter erros;
   confira sempre a íntegra pelo link oficial antes de citar. Magistrados com menos de 10 decisões num recorte aparecem marcados como “amostra pequena”.
   Malha municipal do Ceará: IBGE.
 </footer>
@@ -244,13 +244,13 @@ const API = "https://wvvhlhyfzzoexaywyamm.supabase.co/functions/v1/radar-api";
 const RADARES = {
   bancario: {
     titulo: "LitigaRadar · Placar de decisões bancárias do TJCE",
-    sub: "Placar das decisões bancárias e consumeristas do TJCE, a partir das publicações oficiais do DJEN (Comunica PJe).",
+    sub: "Placar das decisões bancárias e consumeristas do TJCE.",
     quem: "consumidor", aoQuem: "ao consumidor",
     mapa: "Mapa do Ceará · onde vale a pena entrar com a ação",
   },
   saude: {
     titulo: "LitigaRadar · Saúde e direitos do autista",
-    sub: "Placar das decisões sobre medicamentos, planos de saúde, terapias e direitos da pessoa autista no TJCE e no TRF5, a partir do DJEN (Comunica PJe).",
+    sub: "Placar das decisões sobre medicamentos, planos de saúde, terapias e direitos da pessoa autista no TJCE e no TRF5.",
     quem: "paciente", aoQuem: "ao paciente",
     mapa: "Mapa do Ceará · onde a Justiça garante o tratamento",
   },
@@ -1012,10 +1012,10 @@ function desenharFaixa(r) {
   if (RADAR !== "saude") { el.style.display = "none"; return; }
   const dias = r.dias_coletados || 0, meta = 364, pct = Math.min(100, Math.round(100 * dias / meta));
   el.style.display = "block";
-  el.innerHTML = `<b>Radar novo, em carga.</b> O robô está lendo o DJEN dos últimos 6 meses do TJCE e do TRF5 em busca de decisões sobre
+  el.innerHTML = `<b>Radar novo, em carga.</b> O robô está lendo as decisões dos últimos 6 meses do TJCE e do TRF5 em busca de decisões sobre
     medicamentos, planos de saúde, terapias (ABA, fono, TO), cirurgias, home care e direitos da pessoa autista.
     ${fmt.format(dias)} de ${meta} dias já varridos${r.pendentes_ficha ? ` · ${fmt.format(r.pendentes_ficha)} decisões aguardando leitura pela IA` : ""}.
-    Muitos processos de saúde de crianças correm em segredo de justiça e saem no DJEN com pouco texto, então o placar tende a ser menor que o bancário.
+    Muitos processos de saúde de crianças correm em segredo de justiça e são publicados com pouco texto, então o placar tende a ser menor que o bancário.
     <div class="prog"><i style="width:${pct}%"></i></div>`;
 }
 
