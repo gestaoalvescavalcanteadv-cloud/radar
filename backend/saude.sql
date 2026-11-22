@@ -106,13 +106,13 @@ begin
   return 'coletando saude ' || trib || ' ' || alvo;
 end $function$;
 
--- Ficha pela IA do radar de saúde, dentro do mesmo teto diário de US$ 15 do radar bancário
+-- Ficha pela IA do radar de saúde, dentro do mesmo teto diário de US$ 5 do radar bancário
 create or replace function public.radar_backfill_ficha_saude() returns text language plpgsql as $function$
 declare gasto numeric; cmd text;
 begin
   select coalesce(sum(custo_usd), 0) into gasto from ia_consumo
    where criado_em >= date_trunc('day', now() at time zone 'America/Fortaleza') at time zone 'America/Fortaleza';
-  if gasto >= 15 then return 'teto diario atingido: US$ ' || round(gasto, 2); end if;
+  if gasto >= 5 then return 'teto diario atingido: US$ ' || round(gasto, 2); end if;
   if not exists (select 1 from decisoes where ficha_status = 'fila_saude') then return 'nada pendente'; end if;
   cmd := (select command from cron.job where jobname = 'radar-ficha-ia');
   cmd := regexp_replace(cmd, '/functions/v1/radar-ficha\y', '/functions/v1/radar-ficha-saude');
