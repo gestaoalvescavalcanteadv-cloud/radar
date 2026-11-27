@@ -1,5 +1,5 @@
 // LitigaRadar - API publica de leitura (placares e decisoes). Nao grava nada.
-// q = resumo | magistrados | orgaos | decisoes ; radar = bancario (padrao) | saude
+// q = resumo | magistrados | orgaos | decisoes ; radar = bancario (padrao) | saude | previdenciario
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const CORS = {
@@ -8,7 +8,7 @@ const CORS = {
   "Access-Control-Allow-Headers": "content-type",
   "Cache-Control": "public, max-age=300",
 };
-const RADARES = ["bancario", "saude"];
+const RADARES = ["bancario", "saude", "previdenciario"];
 const POR_PAGINA = 50;
 
 Deno.serve(async (req) => {

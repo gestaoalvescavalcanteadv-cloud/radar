@@ -116,7 +116,7 @@
   .faixa-radar b{color:#7a5c12}
   .faixa-radar .prog{height:8px;border-radius:4px;background:#e9e1cc;overflow:hidden;margin-top:8px;max-width:420px}
   .faixa-radar .prog i{display:block;height:100%;background:var(--gold);transition:width .6s ease}
-  body.r-saude .so-bancario{display:none!important}
+  body.r-saude .so-bancario,body.r-prev .so-bancario,body.r-prev .so-tjce{display:none!important}
 </style>
 </head>
 <body>
@@ -135,6 +135,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7.5-4.6-9.3-9.2C1.4 8.4 3.6 5 7 5c2 0 3.3 1.1 5 3 1.7-1.9 3-3 5-3 3.4 0 5.6 3.4 4.3 6.8C19.5 16.4 12 21 12 21z"/><path d="M12 10v5M9.5 12.5h5"/></svg>
         <span>Saúde e autismo<small>medicamentos, planos, TEA</small></span>
       </button>
+      <button data-r="previdenciario" title="17ª, 25ª e 30ª Varas Federais do Ceará: benefícios do INSS e demais assuntos">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6l8-3z"/><path d="M9 12l2 2 4-4"/></svg>
+        <span>Previdenciário<small>Varas Federais 17ª, 25ª e 30ª</small></span>
+      </button>
     </nav>
   </div>
 </header>
@@ -143,7 +147,7 @@
   <div class="faixa-radar" id="faixaRadar"></div>
   <section class="kpis" id="kpis"><div class="carregando">Carregando…</div></section>
 
-  <section class="card" id="cardMapa">
+  <section class="card so-tjce" id="cardMapa">
     <h2 id="mTitulo">Mapa do Ceará · onde vale a pena entrar com a ação</h2>
     <div class="sub" id="mSub"></div>
     <div class="mapa-ctrl">
@@ -254,8 +258,16 @@ const RADARES = {
     quem: "paciente", aoQuem: "ao paciente",
     mapa: "Mapa do Ceará · onde a Justiça garante o tratamento",
   },
+  previdenciario: {
+    titulo: "LitigaRadar · Previdenciário e Justiça Federal",
+    sub: "Placar das decisões da 17ª, 25ª e 30ª Varas Federais do Ceará: benefícios do INSS e os demais assuntos que essas varas julgam.",
+    quem: "segurado", aoQuem: "ao segurado",
+    mapa: "",
+  },
 };
-let RADAR = location.hash === "#saude" ? "saude" : "bancario";
+const HASH = { saude: "#saude", previdenciario: "#previdenciario" };
+const radarDoHash = () => Object.keys(HASH).find(k => HASH[k] === location.hash) || "bancario";
+let RADAR = radarDoHash();
 const R = () => RADARES[RADAR];
 let chartTemas = null;
 const fmt = new Intl.NumberFormat("pt-BR");
@@ -1009,7 +1021,17 @@ document.getElementById("tMetodo").onclick = () => {
 
 function desenharFaixa(r) {
   const el = document.getElementById("faixaRadar");
-  if (RADAR !== "saude") { el.style.display = "none"; return; }
+  if (RADAR === "bancario") { el.style.display = "none"; return; }
+  if (RADAR === "previdenciario") {
+    const dias = r.dias_coletados || 0, meta = 182, pct = Math.min(100, Math.round(100 * dias / meta));
+    el.style.display = "block";
+    el.innerHTML = `<b>Radar novo, em carga.</b> O robô está lendo as publicações dos últimos 6 meses do TRF5 e separando as decisões da
+      17ª, 25ª e 30ª Varas Federais do Ceará: aposentadorias, benefícios por incapacidade, BPC/LOAS, pensão por morte, salário-maternidade
+      e os demais assuntos que essas varas julgam. Aqui, "favorável" é favorável ao segurado ou cidadão contra o INSS, a União ou a Caixa.
+      ${fmt.format(dias)} de ${meta} dias já varridos${r.pendentes_ficha ? ` · ${fmt.format(r.pendentes_ficha)} decisões aguardando leitura pela IA` : ""}.
+      <div class="prog"><i style="width:${pct}%"></i></div>`;
+    return;
+  }
   const dias = r.dias_coletados || 0, meta = 364, pct = Math.min(100, Math.round(100 * dias / meta));
   el.style.display = "block";
   el.innerHTML = `<b>Radar novo, em carga.</b> O robô está lendo as decisões dos últimos 6 meses do TJCE e do TRF5 em busca de decisões sobre
@@ -1022,21 +1044,22 @@ function desenharFaixa(r) {
 function aplicarTextos() {
   document.title = R().titulo;
   document.getElementById("hSub").textContent = R().sub;
-  document.getElementById("mTitulo").textContent = R().mapa;
+  if (R().mapa) document.getElementById("mTitulo").textContent = R().mapa;
   document.getElementById("temasSub").textContent = `Decisões favoráveis e contrárias ${R().aoQuem} em cada tema (acordos e extinções sem mérito ficam fora).`;
   document.getElementById("optFav").textContent = "Só favoráveis " + R().aoQuem;
   document.getElementById("optContra").textContent = "Só contrárias " + R().aoQuem;
   document.body.classList.toggle("r-saude", RADAR === "saude");
+  document.body.classList.toggle("r-prev", RADAR === "previdenciario");
   document.querySelectorAll("#radares button").forEach(b => b.classList.toggle("on", b.dataset.r === RADAR));
 }
 
 async function trocarRadar(novo) {
   if (novo === RADAR) return;
   RADAR = novo;
-  history.replaceState(null, "", novo === "saude" ? "#saude" : location.pathname + location.search);
+  history.replaceState(null, "", HASH[novo] || location.pathname + location.search);
   document.body.classList.add("trocando");
   aplicarTextos();
-  if (RADAR === "saude" && MAPA.visao === "opo") document.querySelector('#mVisao button[data-v="dec"]').click();
+  if (RADAR !== "bancario" && MAPA.visao === "opo") document.querySelector('#mVisao button[data-v="dec"]').click();
   document.getElementById("fTema").value = ""; document.getElementById("mTema").value = "";
   document.getElementById("detalhe").style.display = "none";
   document.getElementById("kpis").innerHTML = '<div class="carregando">Carregando…</div>';
@@ -1044,7 +1067,7 @@ async function trocarRadar(novo) {
     await Promise.all([
       carregarResumo(),
       aba === "decisoes" ? (pagDec = 0, listarDecisoesAba()) : carregarPlacar(),
-      carregarMapa(),
+      RADAR === "previdenciario" ? null : carregarMapa(),
     ]);
   } catch (e) {
     document.getElementById("kpis").innerHTML = `<div class="carregando">Não foi possível carregar: ${esc(e.message)}</div>`;
@@ -1052,7 +1075,7 @@ async function trocarRadar(novo) {
   document.body.classList.remove("trocando");
 }
 document.querySelectorAll("#radares button").forEach(b => b.onclick = () => trocarRadar(b.dataset.r));
-window.addEventListener("hashchange", () => trocarRadar(location.hash === "#saude" ? "saude" : "bancario"));
+window.addEventListener("hashchange", () => trocarRadar(radarDoHash()));
 aplicarTextos();
 
 document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => trocarAba(b.dataset.aba));
@@ -1062,7 +1085,7 @@ document.getElementById("fBusca").oninput = () => desenharTabela();
 
 carregarResumo().catch(e => document.getElementById("kpis").innerHTML = `<div class="carregando">Não foi possível carregar: ${esc(e.message)}</div>`);
 carregarPlacar().catch(e => document.getElementById("conteudo").innerHTML = `<div class="carregando">Não foi possível carregar: ${esc(e.message)}</div>`);
-carregarMapa().catch(e => document.getElementById("mRanks").innerHTML = `<div class="carregando">Não foi possível carregar o mapa: ${esc(e.message)}</div>`);
+if (RADAR !== "previdenciario") carregarMapa().catch(e => document.getElementById("mRanks").innerHTML = `<div class="carregando">Não foi possível carregar o mapa: ${esc(e.message)}</div>`);
 </script>
 </body>
 </html>
